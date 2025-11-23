@@ -1,35 +1,35 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Routes, Route, NavLink } from 'react-router-dom';
+import DashboardPage from './pages/DashboardPage';
+import DayLogPage from './pages/DayLogPage';
+import FoodsPage from './pages/FoodsPage';
+import TrendsPage from './pages/TrendsPage';
+import SettingsPage from './pages/SettingsPage';
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div className="app-root">
+      <header className="app-header">
+        <h1>Diet Tracker v1</h1>
+        <nav className="app-nav">
+          <NavLink to="/" end>Dashboard</NavLink>
+          <NavLink to="/day/today">Today</NavLink>
+          <NavLink to="/foods">Foods</NavLink>
+          <NavLink to="/trends">Trends</NavLink>
+          <NavLink to="/settings">Settings</NavLink>
+        </nav>
+      </header>
 
-export default App
+      <main className="app-main">
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/day/:date" element={<DayLogPage />} />
+          <Route path="/foods" element={<FoodsPage />} />
+          <Route path="/trends" element={<TrendsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          {/* Fallback */}
+          <Route path="*" element={<DashboardPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
