@@ -4,48 +4,54 @@ import { useAppState } from "../context/AppStateContext";
 
 export default function Foods() {
   const { state, dispatch } = useAppState();
-  
-  // 1. Add local UI state for filtering and searching
+
+  // ---- edit existing food ----
   const [editingId, setEditingId] = useState(null);
-  
-  // UPDATED: Add isFavourite to the editForm state
   const [editForm, setEditForm] = useState({
     name: "",
-    category: "",
-    unitLabel: "",
+    category: "home",
+    unitLabel: "serving",
     kcalPerUnit: "",
-    isFavourite: false, // NEW
+    isFavourite: false,
   });
-  
-  const [categoryFilter, setCategoryFilter] = useState("all"); 
+
+  // ---- add new food ----
+  const [newFood, setNewFood] = useState({
+    name: "",
+    category: "home",
+    unitLabel: "serving",
+    kcalPerUnit: "",
+    isFavourite: false,
+  });
+
+  // ---- filters ----
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-
-  // 2. Build a filtered list of foods
   const allFoods = state.foodItems || [];
-  
-  // 1) filter by category
+
+  // build filtered list
   let filteredFoods = allFoods;
+
   if (categoryFilter !== "all") {
     filteredFoods = filteredFoods.filter(
       (f) => (f.category || "home") === categoryFilter
     );
   }
-  
-  // 2) filter by search
+
   const query = searchQuery.trim().toLowerCase();
   if (query) {
     filteredFoods = filteredFoods.filter((f) =>
       f.name.toLowerCase().includes(query)
     );
   }
-  
-  // 3) sort nicely
+
   filteredFoods = [...filteredFoods].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
 
-  // 2.2 UPDATED: Include isFavourite when starting edit
+  // ---- helpers ----
+
   const startEdit = (food) => {
     setEditingId(food.id);
     setEditForm({
@@ -53,178 +59,331 @@ export default function Foods() {
       category: food.category || "home",
       unitLabel: food.unitLabel || "serving",
       kcalPerUnit: String(food.kcalPerUnit ?? ""),
-      isFavourite: !!food.isFavourite, // NEW: prefill isFavourite
+      isFavourite: !!food.isFavourite,
     });
   };
 
-  const saveEdit = () => {
-    // 2.3 UPDATED: Include isFavourite in the UPSERT dispatch
-    dispatch({
-      type: "UPSERT_FOOD_ITEM",
-      payload: {
-        id: editingId,
-        ...editForm,
-        kcalPerUnit: Number(editForm.kcalPerUnit),
-        isFavourite: editForm.isFavourite, // NEW
-      },
-    });
-    setEditingId(null);
-    // Resetting form is not strictly required here as it's used for editing only.
-    // If there was a separate 'Add new' section, a reset would be needed there.
-  };
-  
-  // Helper to update one field in the edit form state
   const updateEditForm = (key, value) => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  return (
-    <div>
-      <h1>Foods Database</h1>
-      <p>Total items: {allFoods.length} ({filteredFoods.length} shown)</p>
+  const saveEdit = () => {
+    if (!editingId) return;
+    const name = editForm.name.trim();
+    if (!name) return;
 
-      {/* 3. Add the search box + category buttons to the JSX */}
-      <div style={{ marginBottom: "1rem" }}>
-        <div style={{ marginBottom: "0.5rem" }}>
+    dispatch({
+      type: "UPSERT_FOOD_ITEM",
+      payload: {
+        id: editingId,
+        name,
+        category: editForm.category || "home",
+        unitLabel: editForm.unitLabel || "serving",
+        kcalPerUnit: Number(editForm.kcalPerUnit) || 0,
+        isFavourite: !!editForm.isFavourite,
+      },
+    });
+
+    setEditingId(null);
+  };
+
+  const handleAddNew = (e) => {
+    e.preventDefault();
+    const name = newFood.name.trim();
+    if (!name) return;
+
+    dispatch({
+      type: "UPSERT_FOOD_ITEM",
+      payload: {
+        id: crypto.randomUUID(),
+        name,
+        category: newFood.category || "home",
+        unitLabel: newFood.unitLabel || "serving",
+        kcalPerUnit: Number(newFood.kcalPerUnit) || 0,
+        isFavourite: !!newFood.isFavourite,
+      },
+    });
+
+    // reset form
+    setNewFood({
+      name: "",
+      category: "home",
+      unitLabel: "serving",
+      kcalPerUnit: "",
+      isFavourite: false,
+    });
+  };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <h1>Foods Database</h1>
+      <p>
+        Total items: {allFoods.length} ({filteredFoods.length} shown)
+      </p>
+
+      {/* --- Add new food form --- */}
+      <section
+        style={{
+          marginBottom: "1rem",
+          padding: "0.75rem",
+          border: "1px solid #ddd",
+          borderRadius: 4,
+        }}
+      >
+        <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
+          Add new food
+        </h2>
+        <form
+          onSubmit={handleAddNew}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            alignItems: "center",
+          }}
+        >
           <input
             type="text"
-            placeholder="Search foods..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: "250px" }}
+            placeholder="Name (e.g. Chapati)"
+            value={newFood.name}
+            onChange={(e) =>
+              setNewFood((prev) => ({ ...prev, name: e.target.value }))
+            }
+            style={{ minWidth: 160 }}
           />
-        </div>
+          <select
+            value={newFood.category}
+            onChange={(e) =>
+              setNewFood((prev) => ({ ...prev, category: e.target.value }))
+            }
+          >
+            <option value="home">Home</option>
+            <option value="street">Street</option>
+            <option value="cheat">Cheat</option>
+            <option value="drinks">Drinks</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Unit (e.g. piece, serving)"
+            value={newFood.unitLabel}
+            onChange={(e) =>
+              setNewFood((prev) => ({ ...prev, unitLabel: e.target.value }))
+            }
+            style={{ width: 120 }}
+          />
+          <input
+            type="number"
+            step="1"
+            min="0"
+            placeholder="kcal / unit"
+            value={newFood.kcalPerUnit}
+            onChange={(e) =>
+              setNewFood((prev) => ({
+                ...prev,
+                kcalPerUnit: e.target.value,
+              }))
+            }
+            style={{ width: 110 }}
+          />
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <input
+              type="checkbox"
+              checked={newFood.isFavourite}
+              onChange={(e) =>
+                setNewFood((prev) => ({
+                  ...prev,
+                  isFavourite: e.target.checked,
+                }))
+              }
+            />
+            Favourite
+          </label>
+          <button type="submit">Add</button>
+        </form>
+      </section>
 
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {[
-            { key: "all", label: "All" },
-            { key: "home", label: "Home" },
-            { key: "street", label: "Street" },
-            { key: "cheat", label: "Cheat" },
-            { key: "drinks", label: "Drinks" },
-          ].map((btn) => (
-            <button
-              key={btn.key}
-              type="button"
-              onClick={() => setCategoryFilter(btn.key)}
-              style={{
-                padding: "0.25rem 0.75rem",
-                border:
-                  categoryFilter === btn.key ? "2px solid black" : "1px solid #ccc",
-                fontWeight: categoryFilter === btn.key ? "bold" : "normal",
-                cursor: "pointer",
-              }}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
+      {/* --- Search + filter controls --- */}
+      <div style={{ marginBottom: "0.75rem" }}>
+        <input
+          type="text"
+          placeholder="Search by name…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: "250px", marginRight: "0.5rem" }}
+        />
+        {[
+          { key: "all", label: "All" },
+          { key: "home", label: "Home" },
+          { key: "street", label: "Street" },
+          { key: "cheat", label: "Cheat" },
+          { key: "drinks", label: "Drinks" },
+        ].map((btn) => (
+          <button
+            key={btn.key}
+            type="button"
+            onClick={() => setCategoryFilter(btn.key)}
+            style={{
+              padding: "0.25rem 0.75rem",
+              border:
+                categoryFilter === btn.key
+                  ? "2px solid black"
+                  : "1px solid #ccc",
+              fontWeight: categoryFilter === btn.key ? "bold" : "normal",
+              cursor: "pointer",
+              marginRight: "0.25rem",
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
       </div>
-      
-      {/* Conditionally render the message if filtered list is empty */}
+
+      {/* --- Empty state / table --- */}
       {filteredFoods.length === 0 && (
-        <p style={{ opacity: 0.7 }}>
+        <p>
           No food items match your criteria. Try adjusting the search or filter.
         </p>
       )}
 
-      {/* Use filteredFoods for rendering the table */}
       {filteredFoods.length > 0 && (
         <table
           style={{
             width: "100%",
             borderCollapse: "collapse",
-            marginTop: "1rem",
+            marginTop: "0.5rem",
           }}
         >
           <thead>
             <tr>
-              <th style={{ textAlign: "left" }}>Name</th>
-              <th>Category</th>
-              <th>Unit</th>
-              <th>kcal/unit</th>
-              <th>Favourite</th> {/* New header for Favourite status */}
-              <th></th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Name
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Category
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Unit
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                kcal / unit
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Favourite
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {filteredFoods.map((food) => (
               <tr key={food.id}>
-                <td>
+                {/* Name */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
                     <input
                       value={editForm.name}
-                      onChange={(e) => updateEditForm("name", e.target.value)}
+                      onChange={(e) =>
+                        updateEditForm("name", e.target.value)
+                      }
                     />
                   ) : (
                     <>
-                      {/* 2.5 Visually mark favourites in the list */}
-                      {food.isFavourite && <span style={{ marginRight: "0.25rem" }}>⭐</span>}
+                      {food.isFavourite && <span>⭐ </span>}
                       {food.name}
                     </>
                   )}
                 </td>
 
-                <td style={{ textAlign: "center" }}>
+                {/* Category */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
-                    <input
+                    <select
                       value={editForm.category}
-                      onChange={(e) => updateEditForm("category", e.target.value)}
-                    />
+                      onChange={(e) =>
+                        updateEditForm("category", e.target.value)
+                      }
+                    >
+                      <option value="home">Home</option>
+                      <option value="street">Street</option>
+                      <option value="cheat">Cheat</option>
+                      <option value="drinks">Drinks</option>
+                    </select>
                   ) : (
-                    food.category
+                    food.category || "home"
                   )}
                 </td>
 
-                <td style={{ textAlign: "center" }}>
+                {/* Unit label */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
                     <input
                       value={editForm.unitLabel}
-                      onChange={(e) => updateEditForm("unitLabel", e.target.value)}
+                      onChange={(e) =>
+                        updateEditForm("unitLabel", e.target.value)
+                      }
                     />
                   ) : (
                     food.unitLabel
                   )}
                 </td>
 
-                <td style={{ textAlign: "center" }}>
+                {/* kcal per unit */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
                     <input
                       type="number"
                       value={editForm.kcalPerUnit}
-                      onChange={(e) => updateEditForm("kcalPerUnit", e.target.value)}
+                      onChange={(e) =>
+                        updateEditForm("kcalPerUnit", e.target.value)
+                      }
                     />
                   ) : (
                     food.kcalPerUnit
                   )}
                 </td>
-                
-                {/* Favourite Status Column */}
-                <td style={{ textAlign: "center" }}>
+
+                {/* Favourite flag */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
                     <label>
-                      {/* 2.4 Add a “Favourite” checkbox in the form */}
                       <input
                         type="checkbox"
                         checked={editForm.isFavourite}
-                        onChange={(e) => updateEditForm("isFavourite", e.target.checked)}
-                      />
+                        onChange={(e) =>
+                          updateEditForm("isFavourite", e.target.checked)
+                        }
+                      />{" "}
+                      Favourite
                     </label>
+                  ) : food.isFavourite ? (
+                    "Yes"
                   ) : (
-                    food.isFavourite ? "Yes" : "No"
+                    "No"
                   )}
                 </td>
 
-                <td style={{ textAlign: "center" }}>
+                {/* Actions */}
+                <td style={{ padding: "4px 0" }}>
                   {editingId === food.id ? (
                     <>
-                      <button onClick={saveEdit}>Save</button>
-                      <button onClick={() => setEditingId(null)}>
+                      <button type="button" onClick={saveEdit}>
+                        Save
+                      </button>{" "}
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                      >
                         Cancel
                       </button>
                     </>
                   ) : (
-                    <button onClick={() => startEdit(food)}>Edit</button>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(food)}
+                    >
+                      Edit
+                    </button>
                   )}
                 </td>
               </tr>

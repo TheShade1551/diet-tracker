@@ -29,7 +29,11 @@ export default function FoodAutocomplete({
   const handleChange = (e) => {
     const next = e.target.value;
     onChangeText(next);
-    setIsOpen(true);
+    if (next.trim()) {
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const handleSelect = (food) => {
@@ -39,11 +43,9 @@ export default function FoodAutocomplete({
 
   const showList = isOpen && suggestions.length > 0;
 
-  // 2. Suggestions list is “white on white” Fix
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", width: "100%" }}>
       <input
-        type="text"
         value={value}
         onChange={handleChange}
         onFocus={() => {
@@ -64,9 +66,10 @@ export default function FoodAutocomplete({
             top: "100%",
             left: 0,
             right: 0,
-            background: "#fff",
+            backgroundColor: "#ffffff",
+            color: "#111111",
             border: "1px solid #ccc",
-            zIndex: 10,
+            zIndex: 20,
             maxHeight: "200px",
             overflowY: "auto",
             fontSize: 14,
@@ -76,15 +79,20 @@ export default function FoodAutocomplete({
             <div
               key={food.id}
               onMouseDown={(e) => {
-                e.preventDefault(); // prevent blur killing the click
+                // prevent blur from input before click
+                e.preventDefault();
                 handleSelect(food);
               }}
-              style={{ padding: "4px 8px", cursor: "pointer" }}
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                backgroundColor: "#ffffff",
+              }}
             >
               <div>{food.name}</div>
-              <div style={{ opacity: 0.7 }}>
-                {food.category} · {food.unitLabel} · {food.kcalPerUnit} kcal/
-                {food.unitLabel}
+              <div style={{ fontSize: 12, opacity: 0.7 }}>
+                {food.category} · {food.unitLabel} ·{" "}
+                {food.kcalPerUnit} kcal/{food.unitLabel}
               </div>
             </div>
           ))}
