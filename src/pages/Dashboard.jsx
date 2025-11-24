@@ -1,162 +1,117 @@
 // src/pages/Dashboard.jsx
-import React, { useMemo } from "react";
-import { useAppState, useProfile } from "../context/AppStateContext";
+import React from "react";
+import { useAppState } from "../context/AppStateContext";
 
-function computeDayStatsForProfile(dayLog, profile) {
-  const meals = Array.isArray(dayLog.meals) ? dayLog.meals : [];
-  const totalIntake = meals.reduce(
-    (sum, m) => sum + (Number(m.totalKcal) || 0),
-    0
-  );
-
-  const baseTarget = Number(profile.dailyKcalTarget) || 0;
-  const activityFactor =
-    Number(dayLog.activityFactor || profile.defaultActivityFactor || 1);
-
-  const targetForDay = baseTarget * activityFactor;
-  const netKcal = totalIntake - targetForDay;
-
-  return { totalIntake, targetForDay, netKcal };
-}
-
-function computeStreak(dayLogs) {
-  const entries = Object.values(dayLogs || {})
-    .filter((d) => Array.isArray(d.meals) && d.meals.length > 0)
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-
-  if (entries.length === 0) return 0;
-
-  let streak = 1; // at least the last logged day
-  for (let i = entries.length - 1; i > 0; i--) {
-    const cur = new Date(entries[i].date);
-    const prev = new Date(entries[i - 1].date);
-    const diffDays = Math.round(
-      (cur.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (diffDays === 1) {
-      streak += 1;
-    } else if (diffDays > 1) {
-      break;
-    }
-  }
-  return streak;
+function calcDayIntake(day) {
+  if (!day || !day.meals) return 0;
+  return day.meals.reduce((sum, m) => sum + (m.totalKcal || 0), 0);
 }
 
 export default function Dashboard() {
   const { state } = useAppState();
-  const { profile } = useProfile();
+  const { profile, dayLogs } = state;
 
-  const dayLogs = state.dayLogs || {};
-  const selectedDate = state.selectedDate;
+  const dailyTarget = Number(profile.dailyKcalTarget) || 0;
 
-  const todayLog = dayLogs[selectedDate] || { meals: [], activityFactor: 1 };
+  const allDays = Object.values(dayLogs || {});
 
-  const { totalIntake, targetForDay, netKcal } = computeDayStatsForProfile(
-    todayLog,
-    profile
+  // Only count days where you actually did *something*
+  const effectiveDays = allDays.filter((day) => {
+    if (!day) return false;
+    const hasMeals = day.meals && day.meals.length > 0;
+    const hasWorkout = !!day.workoutKcal;
+    const hasHydration = !!day.hydrationMl;
+    const hasNotes = !!day.notes;
+    const hasWeight = day.weightKg !== null && day.weightKg !== undefined;
+    return hasMeals || hasWorkout || hasHydration || hasNotes || hasWeight;
+  });
+
+  const daysCount = effectiveDays.length;
+
+  // Today’s log
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayLog = dayLogs[todayIso];
+  const todayIntake = calcDayIntake(todayLog);
+  const todayWorkout = todayLog?.workoutKcal || 0;
+  const todayNetDeficit =
+    dailyTarget > 0 ? (dailyTarget + todayWorkout) - todayIntake : 0;
+
+  // Totals for effective days
+  let totalIntakeAllTime = 0;
+  let totalWorkoutAllTime = 0;
+  let totalTargetAllTime = 0;
+
+  for (const day of effectiveDays) {
+    const intake = calcDayIntake(day);
+    const workout = day.workoutKcal || 0;
+
+    totalIntakeAllTime += intake;
+    totalWorkoutAllTime += workout;
+    totalTargetAllTime += dailyTarget;
+  }
+
+  const allTimeNetDeficit =
+    totalTargetAllTime + totalWorkoutAllTime - totalIntakeAllTime;
+
+  // Simple streak: how many *consecutive* days at or below target
+  const sortedDays = [...effectiveDays].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0
   );
-
-  const logsArray = useMemo(
-    () => Object.values(dayLogs),
-    [dayLogs]
-  );
-
-  const { allTimeNet, totalDaysWithData } = useMemo(() => {
-    let allTimeNet = 0;
-    let totalDaysWithData = 0;
-
-    logsArray.forEach((d) => {
-      if (!Array.isArray(d.meals) || d.meals.length === 0) return;
-      const { netKcal } = computeDayStatsForProfile(d, profile);
-      allTimeNet += netKcal;
-      totalDaysWithData += 1;
-    });
-
-    return { allTimeNet, totalDaysWithData };
-  }, [logsArray, profile]);
-
-  const allTimeDeficit = allTimeNet < 0 ? -allTimeNet : 0;
-  const allTimeSurplus = allTimeNet > 0 ? allTimeNet : 0;
-  const approxKgChange = allTimeDeficit / 7700; // rough, optimistic
-
-  const streak = computeStreak(dayLogs);
-
-  // Latest weight
-  const weightLogs = logsArray
-    .filter(
-      (d) =>
-        d.weightKg !== null &&
-        d.weightKg !== undefined &&
-        d.weightKg !== ""
-    )
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-
-  const latestWeightEntry =
-    weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
+  let currentStreak = 0;
+  for (let i = sortedDays.length - 1; i >= 0; i--) {
+    const day = sortedDays[i];
+    const intake = calcDayIntake(day);
+    const workout = day.workoutKcal || 0;
+    const dayDeficit = (dailyTarget + workout) - intake;
+    if (dayDeficit >= 0) {
+      currentStreak += 1;
+    } else {
+      break;
+    }
+  }
 
   return (
     <div>
-      <h2>Dashboard</h2>
+      <h1>Dashboard</h1>
 
-      {/* ───── Today summary ───── */}
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h3>Today &mdash; {selectedDate}</h3>
-        <p>Intake: <strong>{Math.round(totalIntake)} kcal</strong></p>
-        <p>Target (with activity): <strong>{Math.round(targetForDay)} kcal</strong></p>
-        <p>
-          {netKcal >= 0 ? "Surplus" : "Deficit"}:{" "}
-          <strong>{Math.abs(Math.round(netKcal))} kcal</strong>
-        </p>
-      </section>
-
-      {/* ───── Latest weight ───── */}
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h3>Weight</h3>
-        {latestWeightEntry ? (
-          <p>
-            Latest:{" "}
-            <strong>{latestWeightEntry.weightKg} kg</strong>{" "}
-            (on {latestWeightEntry.date})
-          </p>
-        ) : (
-          <p>No weight logs yet. Add one in the Trends tab.</p>
-        )}
-      </section>
-
-      {/* ───── All-time stats ───── */}
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h3>All-Time Calories</h3>
-        <p>Days with data: <strong>{totalDaysWithData}</strong></p>
-        <p>
-          All-time net:{" "}
-          <strong>{Math.round(allTimeNet)} kcal</strong>{" "}
-          {allTimeNet < 0 ? "(overall deficit)" : "(overall surplus)"}
-        </p>
-        <p>
-          Total deficit: <strong>{Math.round(allTimeDeficit)} kcal</strong>
-        </p>
-        <p>
-          Rough equivalent:{" "}
-          <strong>{approxKgChange.toFixed(2)} kg</strong> fat loss
-          (using 7700 kcal ≈ 1 kg)
-        </p>
-        {approxKgChange >= 1 && (
-          <p style={{ marginTop: "0.5rem" }}>
-            ✅ You&apos;ve crossed about 1 kg worth of deficit.
-            Consider updating your weight in Settings so your TDEE stays
-            accurate.
-          </p>
-        )}
-      </section>
-
-      {/* ───── Streak ───── */}
       <section>
-        <h3>Logging Streak</h3>
+        <h2>Today</h2>
+        <p>Date: {todayIso}</p>
+        <p>Daily target: {dailyTarget || "—"} kcal</p>
+        <p>Intake so far: {todayIntake} kcal</p>
+        <p>Workout: {todayWorkout} kcal</p>
         <p>
-          Current streak:{" "}
-          <strong>{streak} day{streak === 1 ? "" : "s"}</strong> with
-          meals logged.
+          Net today (target + workout - intake):{" "}
+          {Math.round(todayNetDeficit)} kcal{" "}
+          {todayNetDeficit >= 0 ? "(deficit)" : "(surplus)"}
         </p>
+      </section>
+
+      <section>
+        <h2>All-time summary</h2>
+        <p>Logged days: {daysCount}</p>
+        <p>Total intake: {Math.round(totalIntakeAllTime)} kcal</p>
+        <p>Total workouts: {Math.round(totalWorkoutAllTime)} kcal</p>
+        <p>Total target (logged days): {Math.round(totalTargetAllTime)} kcal</p>
+        <p>
+          All-time net (target + workouts − intake):{" "}
+          {Math.round(allTimeNetDeficit)} kcal{" "}
+          {allTimeNetDeficit >= 0 ? "(overall deficit)" : "(overall surplus)"}
+        </p>
+      </section>
+
+      <section>
+        <h2>Streak</h2>
+        <p>Days at or under target (most recent streak): {currentStreak}</p>
+      </section>
+
+      <section>
+        <h2>Quick links</h2>
+        <ul>
+          <li>Use Day Log to add meals for any date.</li>
+          <li>Use Trends to see calories vs. target and weight graphs.</li>
+          <li>Use Settings to adjust your daily target and profile.</li>
+        </ul>
       </section>
     </div>
   );
