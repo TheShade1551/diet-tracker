@@ -1,119 +1,124 @@
-import { useAppState } from "../context/AppStateContext";
+// src/pages/Settings.jsx
+import React, { useState } from "react";
+import { useProfile } from "../context/AppStateContext";
 
 export default function Settings() {
-  const { profile, updateProfile } = useAppState();
+  const { profile, saveProfile } = useProfile();
 
-  const handleChange = (field) => (e) => {
-    const value = e.target.value;
-    updateProfile({ [field]: value });
+  const [form, setForm] = useState({
+    name: profile.name || "",
+    heightCm: profile.heightCm ?? "",
+    weightKg: profile.weightKg ?? "",
+    sex: profile.sex || "male",
+    dailyKcalTarget: profile.dailyKcalTarget ?? 2200,
+    defaultActivityPreset: profile.defaultActivityPreset || "sedentary",
+    defaultActivityFactor: profile.defaultActivityFactor ?? 1.2,
+    proteinTarget: profile.proteinTarget ?? "",
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleNumberChange = (field) => (e) => {
-    const value = e.target.value;
-    updateProfile({ [field]: value === "" ? "" : Number(value) });
-  };
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  const handlePresetChange = (e) => {
-    const preset = e.target.value;
+    const toNumberOrEmpty = (v) =>
+      v === "" ? "" : Number.isNaN(Number(v)) ? "" : Number(v);
 
-    let factor = profile.defaultActivityFactor;
-    if (preset === "sedentary") factor = 1.2;
-    if (preset === "college") factor = 1.49; // from our earlier TDEE calc
-    // custom: keep whatever user set manually
-
-    updateProfile({
-      defaultActivityPreset: preset,
-      defaultActivityFactor: factor,
+    saveProfile({
+      ...form,
+      heightCm: toNumberOrEmpty(form.heightCm),
+      weightKg: toNumberOrEmpty(form.weightKg),
+      dailyKcalTarget:
+        toNumberOrEmpty(form.dailyKcalTarget) || 2200,
+      defaultActivityFactor:
+        Number(form.defaultActivityFactor) || 1.2,
+      proteinTarget: toNumberOrEmpty(form.proteinTarget),
     });
+
+    // simple feedback for now
+    alert("Profile saved!");
   };
 
   return (
     <div>
       <h1>Settings</h1>
 
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h2>Profile</h2>
+      <form onSubmit={handleSubmit}>
         <div>
           <label>
             Name:{" "}
             <input
-              type="text"
-              value={profile.name}
-              onChange={handleChange("name")}
+              name="name"
+              value={form.name}
+              onChange={handleChange}
             />
           </label>
         </div>
+
         <div>
           <label>
             Height (cm):{" "}
             <input
-              type="number"
-              value={profile.heightCm}
-              onChange={handleNumberChange("heightCm")}
-              min="0"
+              name="heightCm"
+              value={form.heightCm}
+              onChange={handleChange}
             />
           </label>
         </div>
+
         <div>
           <label>
             Current Weight (kg):{" "}
             <input
-              type="number"
-              value={profile.weightKg}
-              onChange={handleNumberChange("weightKg")}
-              min="0"
+              name="weightKg"
+              value={form.weightKg}
+              onChange={handleChange}
             />
           </label>
         </div>
+
         <div>
           <label>
             Sex:{" "}
-            <select value={profile.sex} onChange={handleChange("sex")}>
+            <select
+              name="sex"
+              value={form.sex}
+              onChange={handleChange}
+            >
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other / Prefer not to say</option>
             </select>
           </label>
         </div>
-      </section>
 
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h2>Targets</h2>
         <div>
           <label>
-            Daily calorie target (kcal):{" "}
+            Daily Calorie Target (kcal):{" "}
             <input
-              type="number"
-              value={profile.dailyKcalTarget}
-              onChange={handleNumberChange("dailyKcalTarget")}
-              min="0"
+              name="dailyKcalTarget"
+              value={form.dailyKcalTarget}
+              onChange={handleChange}
             />
           </label>
         </div>
-        <div>
-          <label>
-            Protein target (g) (optional):{" "}
-            <input
-              type="number"
-              value={profile.proteinTarget}
-              onChange={handleNumberChange("proteinTarget")}
-              min="0"
-            />
-          </label>
-        </div>
-      </section>
 
-      <section style={{ marginBottom: "1.5rem" }}>
-        <h2>Default Activity</h2>
         <div>
           <label>
-            Preset:{" "}
+            Default Activity Preset:{" "}
             <select
-              value={profile.defaultActivityPreset}
-              onChange={handlePresetChange}
+              name="defaultActivityPreset"
+              value={form.defaultActivityPreset}
+              onChange={handleChange}
             >
-              <option value="sedentary">Sedentary day</option>
-              <option value="college">College commute day</option>
+              <option value="sedentary">Sedentary</option>
+              <option value="college">College / Mixed</option>
               <option value="custom">Custom</option>
             </select>
           </label>
@@ -121,22 +126,28 @@ export default function Settings() {
 
         <div>
           <label>
-            Default activity factor:{" "}
+            Default Activity Factor:{" "}
             <input
-              type="number"
-              step="0.01"
-              value={profile.defaultActivityFactor}
-              onChange={handleNumberChange("defaultActivityFactor")}
-              disabled={profile.defaultActivityPreset !== "custom"}
+              name="defaultActivityFactor"
+              value={form.defaultActivityFactor}
+              onChange={handleChange}
             />
           </label>
-          <p style={{ fontSize: "0.85rem" }}>
-            Used as the starting activity factor when creating a new day log.
-          </p>
         </div>
-      </section>
 
-      {/* We’ll add data export / reset etc. later here */}
+        <div>
+          <label>
+            Protein Target (g, optional):{" "}
+            <input
+              name="proteinTarget"
+              value={form.proteinTarget}
+              onChange={handleChange}
+            />
+          </label>
+        </div>
+
+        <button type="submit">Save profile</button>
+      </form>
     </div>
   );
 }

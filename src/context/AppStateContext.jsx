@@ -1,7 +1,11 @@
 // src/context/AppStateContext.jsx
-import React, { createContext, useContext, useEffect, useReducer } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+} from "react";
 
-// ----- PROFILE DEFAULT -----
 const DEFAULT_PROFILE = {
   name: "",
   heightCm: "",
@@ -19,7 +23,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 // --------- INITIAL STATE ---------
 const initialState = {
-  // 🔹 Use our new profile shape here
+  // Basic user profile (v1)
   profile: {
     ...DEFAULT_PROFILE,
   },
@@ -64,6 +68,7 @@ const initialState = {
 };
 
 // --------- HELPERS ---------
+
 function loadFromStorage() {
   try {
     const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -75,13 +80,10 @@ function loadFromStorage() {
     return {
       ...initialState,
       ...parsed,
-
-      // 🔹 Merge profile on top of DEFAULT_PROFILE so old data still works
       profile: {
-        ...DEFAULT_PROFILE,
+        ...initialState.profile,
         ...(parsed.profile || {}),
       },
-
       dayLogs: parsed.dayLogs || {},
       foodItems: parsed.foodItems || [],
       selectedDate: parsed.selectedDate || todayIso(),
@@ -116,6 +118,7 @@ function ensureDayLog(state, date) {
 }
 
 // --------- REDUCER ---------
+
 function appReducer(state, action) {
   switch (action.type) {
     case "SET_SELECTED_DATE": {
@@ -154,7 +157,6 @@ function appReducer(state, action) {
 
     case "ADD_MEAL_ENTRY": {
       const {
-        id,
         date,
         mealType,
         foodItemId,
@@ -168,7 +170,7 @@ function appReducer(state, action) {
       const dayLog = ensureDayLog(state, date);
 
       const newMeal = {
-        id,
+        id: action.payload.id,
         mealType,
         foodItemId,
         foodNameSnapshot,
@@ -229,13 +231,12 @@ function appReducer(state, action) {
       };
     }
 
-    // 🔹 New: update profile from /settings
     case "UPDATE_PROFILE": {
       return {
         ...state,
         profile: {
           ...state.profile,
-          ...action.payload,
+          ...(action.payload || {}),
         },
       };
     }
@@ -246,6 +247,7 @@ function appReducer(state, action) {
 }
 
 // --------- CONTEXT SETUP ---------
+
 const AppStateContext = createContext(null);
 
 export function AppStateProvider({ children }) {
@@ -270,4 +272,16 @@ export function useAppState() {
     throw new Error("useAppState must be used within an AppStateProvider");
   }
   return ctx;
+}
+
+// Convenience hook just for profile logic
+export function useProfile() {
+  const { state, dispatch } = useAppState();
+  const profile = state.profile || DEFAULT_PROFILE;
+
+  const saveProfile = (patch) => {
+    dispatch({ type: "UPDATE_PROFILE", payload: patch });
+  };
+
+  return { profile, saveProfile };
 }
