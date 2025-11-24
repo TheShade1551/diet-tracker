@@ -39,8 +39,9 @@ export default function FoodAutocomplete({
 
   const showList = isOpen && suggestions.length > 0;
 
+  // 2. Suggestions list is “white on white” Fix
   return (
-    <div style={{ position: "relative", maxWidth: 320 }}>
+    <div style={{ position: "relative" }}>
       <input
         type="text"
         value={value}
@@ -55,44 +56,39 @@ export default function FoodAutocomplete({
         placeholder={placeholder}
         style={{ width: "100%" }}
       />
+
       {showList && (
-        <ul
+        <div
           style={{
             position: "absolute",
             top: "100%",
             left: 0,
             right: 0,
-            maxHeight: 200,
-            overflowY: "auto",
+            background: "#fff",
             border: "1px solid #ccc",
-            background: "white",
-            margin: 0,
-            padding: 0,
-            listStyle: "none",
-            zIndex: 20,
+            zIndex: 10,
+            maxHeight: "200px",
+            overflowY: "auto",
+            fontSize: 14,
           }}
         >
           {suggestions.map((food) => (
-            <li
+            <div
               key={food.id}
               onMouseDown={(e) => {
-                // prevent blur from input before click
-                e.preventDefault();
+                e.preventDefault(); // prevent blur killing the click
                 handleSelect(food);
               }}
-              style={{
-                padding: "4px 8px",
-                cursor: "pointer",
-                fontSize: 14,
-              }}
+              style={{ padding: "4px 8px", cursor: "pointer" }}
             >
               <div>{food.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
-                {food.category} · {food.unitLabel} · {food.kcalPerUnit} kcal/{food.unitLabel}
+              <div style={{ opacity: 0.7 }}>
+                {food.category} · {food.unitLabel} · {food.kcalPerUnit} kcal/
+                {food.unitLabel}
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

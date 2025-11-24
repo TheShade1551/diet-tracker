@@ -37,7 +37,7 @@ const initialState = {
     //   category: "home",
     //   unitLabel: "piece",
     //   kcalPerUnit: 80,
-    //   isFavourite: false, // NEW field example
+    //   isFavourite: false, // NEW field example
     // }
   ],
 
@@ -129,7 +129,7 @@ function appReducer(state, action) {
         category,
         unitLabel,
         kcalPerUnit,
-        isFavourite = false,   // NEW: Default to false if missing
+        isFavourite = false, // NEW: Default to false if missing
       } = action.payload;
 
       // If id exists -> update; else insert
@@ -143,7 +143,7 @@ function appReducer(state, action) {
           category,
           unitLabel,
           kcalPerUnit,
-          isFavourite,          // NEW: Save the new value
+          isFavourite, // NEW: Save the new value
         };
         return { ...state, foodItems: updated };
       }
@@ -158,7 +158,7 @@ function appReducer(state, action) {
             category,
             unitLabel,
             kcalPerUnit,
-            isFavourite,        // NEW: Save the new value
+            isFavourite, // NEW: Save the new value
           },
         ],
       };
@@ -221,6 +221,43 @@ function appReducer(state, action) {
         },
       };
     }
+    
+    // 4.1 ADDED: UPDATE_MEAL_ENTRY to allow editing quantity
+    case "UPDATE_MEAL_ENTRY": {
+      const { date, mealId, quantity } = action.payload;
+      const dayLog = state.dayLogs[date];
+      if (!dayLog) return state;
+
+      const updatedMeals = (dayLog.meals || []).map((m) => {
+        if (m.id !== mealId) return m;
+
+        // Safely recompute totalKcal
+        const perUnit =
+          m.kcalPerUnitSnapshot ??
+          (m.quantity ? m.totalKcal / m.quantity : 0);
+
+        const newQuantity = quantity;
+        const newTotalKcal = Math.round(newQuantity * perUnit);
+
+        return {
+          ...m,
+          quantity: newQuantity,
+          totalKcal: newTotalKcal,
+          kcalPerUnitSnapshot: perUnit, // ensure we have it going forward
+        };
+      });
+
+      const updatedDay = { ...dayLog, meals: updatedMeals };
+
+      return {
+        ...state,
+        dayLogs: {
+          ...state.dayLogs,
+          [date]: updatedDay,
+        },
+      };
+    }
+
 
     case "UPDATE_DAY_META": {
       const { date, patch } = action.payload;
