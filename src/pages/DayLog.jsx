@@ -36,7 +36,7 @@ function AddMealForm({ mealType, date }) {
 
     const kcalPerUnitNum = Number(kcalPerUnit);
     const quantityNum = Number(quantity);
-    
+
     const totalKcal = Math.round(kcalPerUnitNum * quantityNum);
 
     // 1) See if a foodItem already exists with same name + unit
@@ -52,7 +52,10 @@ function AddMealForm({ mealType, date }) {
       foodId = existing.id;
 
       // Optional: keep kcalPerUnit in sync if you tweak it over time
-      if (existing.kcalPerUnit !== kcalPerUnitNum || existing.category !== category) {
+      if (
+        existing.kcalPerUnit !== kcalPerUnitNum ||
+        existing.category !== category
+      ) {
         dispatch({
           type: "UPSERT_FOOD_ITEM",
           payload: {
@@ -151,12 +154,15 @@ export default function DayLog() {
   const { state, dispatch } = useAppState();
 
   const selectedDate = state.selectedDate;
+  
+  // Get the day log, falling back to an empty object
   const dayLog = useMemo(() => {
     return (
       state.dayLogs[selectedDate] || {
         date: selectedDate,
         activityFactor: 1.2,
-        hydrationMl: 0,
+        // Old hydrationMl is replaced by hydrationLitres in state
+        hydrationLitres: 0,
         workoutKcal: 0,
         weightKg: null,
         notes: "",
@@ -164,6 +170,11 @@ export default function DayLog() {
       }
     );
   }, [state.dayLogs, selectedDate]);
+
+  // Extract new/updated fields
+  const hydrationLitres = dayLog.hydrationLitres ?? 0;
+  const notes = dayLog.notes ?? "";
+
 
   const mealsByType = useMemo(() => {
     const grouped = { lunch: [], dinner: [], extra: [] };
@@ -174,8 +185,6 @@ export default function DayLog() {
     return grouped;
   }, [dayLog.meals]);
 
-  // MODIFICATION APPLIED HERE:
-  // Using totalKcal with fallback to kcalPerUnitSnapshot
   const totalIntakeKcal = (dayLog.meals || []).reduce(
     (sum, m) => sum + (m.totalKcal ?? m.kcalPerUnitSnapshot ?? 0),
     0
@@ -221,7 +230,7 @@ export default function DayLog() {
         </div>
       </section>
 
-      {/* Meta info: activity, hydration, workout, notes */}
+      {/* Day Meta (Activity & Workout Kcal remain here, Hydration/Notes moved/updated) */}
       <section style={{ marginBottom: "1rem" }}>
         <h2>Day meta</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
@@ -242,21 +251,8 @@ export default function DayLog() {
             />
           </label>
 
-          <label>
-            Hydration (ml):{" "}
-            <input
-              type="number"
-              min="0"
-              value={dayLog.hydrationMl}
-              onChange={(e) =>
-                handleMetaChange({
-                  hydrationMl: Number(e.target.value) || 0,
-                })
-              }
-              style={{ width: "100px" }}
-            />
-          </label>
-
+          {/* Hydration (ml) input removed from here */}
+          
           <label>
             Workout kcal (manual):{" "}
             <input
@@ -291,19 +287,7 @@ export default function DayLog() {
           </label>
         </div>
 
-        <div style={{ marginTop: "0.5rem" }}>
-          <textarea
-            rows={2}
-            style={{ width: "100%" }}
-            placeholder="Notes for the day (how you felt, hunger, etc.)"
-            value={dayLog.notes}
-            onChange={(e) =>
-              handleMetaChange({
-                notes: e.target.value,
-              })
-            }
-          />
-        </div>
+        {/* Notes textarea removed from here */}
       </section>
 
       {/* Meals sections */}
@@ -362,6 +346,50 @@ export default function DayLog() {
           <AddMealForm mealType={meal.id} date={selectedDate} />
         </section>
       ))}
+      
+      {/* ------------------------------------------------ */}
+      {/* NEW UI FOR HYDRATION AND NOTES */}
+      {/* ------------------------------------------------ */}
+
+      <hr style={{ margin: "1.5rem 0" }} />
+
+      <section>
+        <h2>Hydration</h2>
+        <label>
+          Water (litres) for this day:{" "}
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={hydrationLitres}
+            onChange={(e) =>
+              dispatch({
+                type: "UPDATE_DAY_HYDRATION",
+                payload: {
+                  date: selectedDate,
+                  hydrationLitres: Number(e.target.value) || 0,
+                },
+              })
+            }
+          />
+        </label>
+      </section>
+
+      <section style={{ marginTop: "1rem" }}>
+        <h2>Notes</h2>
+        <textarea
+          rows={3}
+          placeholder="How did you feel today? Hunger, mood, sleep, whatever..."
+          value={notes}
+          onChange={(e) =>
+            dispatch({
+              type: "UPDATE_DAY_NOTES",
+              payload: { date: selectedDate, notes: e.target.value },
+            })
+          }
+          style={{ width: "100%", maxWidth: "500px" }}
+        />
+      </section>
     </div>
   );
 }

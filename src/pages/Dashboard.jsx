@@ -2,7 +2,6 @@
 import React from "react";
 import { useAppState } from "../context/AppStateContext";
 
-// MODIFICATION APPLIED HERE:
 // Using totalKcal with fallback to kcalPerUnitSnapshot
 function calcDayIntake(day) {
   if (!day || !day.meals) return 0;
@@ -25,7 +24,10 @@ export default function Dashboard() {
     if (!day) return false;
     const hasMeals = day.meals && day.meals.length > 0;
     const hasWorkout = !!day.workoutKcal;
-    const hasHydration = !!day.hydrationMl;
+    // Note: The hydration check here is still using the old 'hydrationMl' field
+    // which may filter out days logged under the new 'hydrationLitres' scheme.
+    // For now, we leave it as is to avoid modifying the filter logic.
+    const hasHydration = !!day.hydrationMl || !!day.hydrationLitres;
     const hasNotes = !!day.notes;
     const hasWeight = day.weightKg !== null && day.weightKg !== undefined;
     return hasMeals || hasWorkout || hasHydration || hasNotes || hasWeight;
@@ -35,7 +37,12 @@ export default function Dashboard() {
 
   // Today’s log
   const todayIso = new Date().toISOString().slice(0, 10);
-  const todayLog = dayLogs[todayIso];
+  // Ensure we fall back to an empty object if no log exists
+  const todayLog = dayLogs[todayIso] || {}; 
+  
+  // NEW: Fetch hydration in Litres
+  const todayHydration = todayLog.hydrationLitres ?? 0;
+
   const todayIntake = calcDayIntake(todayLog);
   const todayWorkout = todayLog?.workoutKcal || 0;
   const todayNetDeficit =
@@ -87,6 +94,10 @@ export default function Dashboard() {
         <p>Daily target: {dailyTarget || "—"} kcal</p>
         <p>Intake so far: {todayIntake} kcal</p>
         <p>Workout: {todayWorkout} kcal</p>
+        
+        {/* NEW: Display hydration */}
+        <p>Today's hydration: {todayHydration.toFixed(1)} L</p>
+
         <p>
           Net today (target + workout - intake):{" "}
           {Math.round(todayNetDeficit)} kcal{" "}

@@ -32,35 +32,25 @@ const initialState = {
   foodItems: [
     // example shape:
     // {
-    //   id: "food-1",
-    //   name: "Chapati",
-    //   category: "home",
-    //   unitLabel: "piece",
-    //   kcalPerUnit: 80,
+    //   id: "food-1",
+    //   name: "Chapati",
+    //   category: "home",
+    //   unitLabel: "piece",
+    //   kcalPerUnit: 80,
     // }
   ],
 
   // Logs keyed by date: "YYYY-MM-DD" -> { ... }
   dayLogs: {
+    // Example updated shape:
     // "2025-11-24": {
-    //   date: "2025-11-24",
-    //   activityFactor: 1.2,
-    //   hydrationMl: 0,
-    //   workoutKcal: 0,
-    //   weightKg: null,
-    //   notes: "",
-    //   meals: [
-    //     {
-    //       id: "meal-1",
-    //       mealType: "lunch", // "lunch" | "dinner" | "extra"
-    //       foodItemId: "food-1",
-    //       foodNameSnapshot: "Chapati", // frozen label at time of logging
-    //       unitLabelSnapshot: "piece",
-    //       quantity: 2,
-    //       kcalPerUnitSnapshot: 80,
-    //       totalKcal: 160,
-    //     },
-    //   ],
+    //   date: "2025-11-24",
+    //   activityFactor: 1.2,
+    //   hydrationLitres: 0, // NEW: hydration now in Litres
+    //   workoutKcal: 0,
+    //   weightKg: null,
+    //   notes: "", // NEW
+    //   meals: [ ... ],
     // },
   },
 
@@ -106,13 +96,15 @@ function ensureDayLog(state, date) {
   const existing = state.dayLogs[date];
   if (existing) return existing;
 
+  // UPDATED DEFAULT SHAPE
   return {
     date,
-    activityFactor: 1.2,
-    hydrationMl: 0,
+    activityFactor: state.profile?.defaultActivityFactor ?? 1.2,
     workoutKcal: 0,
     weightKg: null,
-    notes: "",
+    // Note: hydrationMl from old examples is replaced by hydrationLitres
+    hydrationLitres: 0, // NEW field
+    notes: "", // NEW field
     meals: [],
   };
 }
@@ -231,6 +223,38 @@ function appReducer(state, action) {
       };
     }
 
+    // NEW ACTION: Update Hydration
+    case "UPDATE_DAY_HYDRATION": {
+      const { date, hydrationLitres } = action.payload;
+      const dayLogs = { ...state.dayLogs };
+      
+      // Use existing or the full default object
+      const existing = dayLogs[date] || ensureDayLog(state, date); 
+
+      dayLogs[date] = {
+        ...existing,
+        hydrationLitres,
+      };
+
+      return { ...state, dayLogs };
+    }
+
+    // NEW ACTION: Update Notes
+    case "UPDATE_DAY_NOTES": {
+      const { date, notes } = action.payload;
+      const dayLogs = { ...state.dayLogs };
+      
+      // Use existing or the full default object
+      const existing = dayLogs[date] || ensureDayLog(state, date);
+
+      dayLogs[date] = {
+        ...existing,
+        notes,
+      };
+
+      return { ...state, dayLogs };
+    }
+    
     case "UPDATE_PROFILE": {
       return {
         ...state,
