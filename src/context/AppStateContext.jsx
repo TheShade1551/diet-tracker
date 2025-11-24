@@ -1,6 +1,17 @@
 // src/context/AppStateContext.jsx
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 
+const DEFAULT_PROFILE = {
+  name: "",
+  heightCm: "",
+  weightKg: "",
+  sex: "male",              // or "female"/"other"
+  dailyKcalTarget: 2200,    // can tweak later
+  defaultActivityPreset: "sedentary", // "sedentary" | "college" | "custom"
+  defaultActivityFactor: 1.2,
+  proteinTarget: "",        // optional, can stay empty
+};
+
 const LOCAL_STORAGE_KEY = "diet-tracker-app-state-v1";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
