@@ -1,6 +1,7 @@
 // src/pages/DayLog.jsx
 import React, { useMemo, useState } from "react";
 import { useAppState } from "../context/AppStateContext";
+import FoodAutocomplete from "../components/FoodAutocomplete"; // 1. Added Import
 
 const MEAL_TYPES = [
   { id: "lunch", label: "Lunch" },
@@ -15,153 +16,25 @@ function generateId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-// Small reusable form for adding one meal entry
-function AddMealForm({ mealType, date }) {
-  const { state, dispatch } = useAppState();
-  const [foodName, setFoodName] = useState("");
-  const [category, setCategory] = useState("home"); // home | street | drink | cheat etc (for future)
-  const [unitLabel, setUnitLabel] = useState("plate");
-  const [kcalPerUnit, setKcalPerUnit] = useState("");
-  const [quantity, setQuantity] = useState("1");
-
-  const isValid =
-    foodName.trim() !== "" &&
-    unitLabel.trim() !== "" &&
-    Number(kcalPerUnit) > 0 &&
-    Number(quantity) > 0;
-
-  const handleAdd = (e) => {
-    e.preventDefault();
-    if (!isValid) return;
-
-    const kcalPerUnitNum = Number(kcalPerUnit);
-    const quantityNum = Number(quantity);
-
-    const totalKcal = Math.round(kcalPerUnitNum * quantityNum);
-
-    // 1) See if a foodItem already exists with same name + unit
-    const existing = state.foodItems.find(
-      (f) =>
-        f.name.toLowerCase() === foodName.trim().toLowerCase() &&
-        f.unitLabel.toLowerCase() === unitLabel.trim().toLowerCase()
-    );
-
-    let foodId;
-
-    if (existing) {
-      foodId = existing.id;
-
-      // Optional: keep kcalPerUnit in sync if you tweak it over time
-      if (
-        existing.kcalPerUnit !== kcalPerUnitNum ||
-        existing.category !== category
-      ) {
-        dispatch({
-          type: "UPSERT_FOOD_ITEM",
-          payload: {
-            id: existing.id,
-            name: existing.name,
-            category,
-            unitLabel: existing.unitLabel,
-            kcalPerUnit: kcalPerUnitNum,
-            // Preserve isFavourite status if updating meta fields
-            isFavourite: existing.isFavourite,
-          },
-        });
-      }
-    } else {
-      foodId = generateId("food");
-      dispatch({
-        type: "UPSERT_FOOD_ITEM",
-        payload: {
-          id: foodId,
-          name: foodName.trim(),
-          category,
-          unitLabel: unitLabel.trim(),
-          kcalPerUnit: kcalPerUnitNum,
-        },
-      });
-    }
-
-    // 2) Add meal entry (snapshot fields so if you later tweak DB, log still shows what was logged)
-    dispatch({
-      type: "ADD_MEAL_ENTRY",
-      payload: {
-        id: generateId("meal"),
-        date,
-        mealType,
-        foodItemId: foodId,
-        foodNameSnapshot: foodName.trim(),
-        unitLabelSnapshot: unitLabel.trim(),
-        kcalPerUnitSnapshot: kcalPerUnitNum,
-        quantity: quantityNum,
-        totalKcal,
-      },
-    });
-
-    // Clear form
-    setFoodName("");
-    setKcalPerUnit("");
-    setQuantity("1");
-  };
-
-  return (
-    <form onSubmit={handleAdd} style={{ marginTop: "0.5rem" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-        <input
-          type="text"
-          placeholder="Food name"
-          value={foodName}
-          onChange={(e) => setFoodName(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Category (home/street/cheat/drink)"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Unit (plate, piece...)"
-          value={unitLabel}
-          onChange={(e) => setUnitLabel(e.target.value)}
-          style={{ width: "120px" }}
-        />
-        <input
-          type="number"
-          min="0"
-          placeholder="kcal per unit"
-          value={kcalPerUnit}
-          onChange={(e) => setKcalPerUnit(e.target.value)}
-          style={{ width: "120px" }}
-        />
-        <input
-          type="number"
-          min="0.1"
-          step="0.1"
-          placeholder="Qty"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          style={{ width: "80px" }}
-        />
-        <button type="submit" disabled={!isValid}>
-          Add
-        </button>
-      </div>
-    </form>
-  );
-}
+// ----------------------------------------------------
+// NOTE: AddMealForm Component has been removed/merged
+// ----------------------------------------------------
 
 export default function DayLog() {
   const { state, dispatch } = useAppState();
 
   const selectedDate = state.selectedDate;
   
+  // 2. Add New Local State for the Add Meal form
+  const [newMealFoodSearch, setNewMealFoodSearch] = useState("");
+  const [newMealFoodId, setNewMealFoodId] = useState(null);
+  const [newQuantity, setNewQuantity] = useState("1"); // Added quantity state for the new form
+
   // 3.1 Get favourite foods from state
   const allFoods = state.foodItems || [];
   const favouriteFoods = allFoods.filter((f) => f.isFavourite);
 
-  // 3.2 Extract a helper for “actually add a meal”
+  // 3.2 Extract a helper for “actually add a meal” (Updated ID generation)
   const addMealEntry = (mealType, food, qty) => {
     const quantityNumber = Number(qty);
     if (!food || !quantityNumber || quantityNumber <= 0) return;
@@ -171,7 +44,7 @@ export default function DayLog() {
     dispatch({
       type: "ADD_MEAL_ENTRY",
       payload: {
-        id: generateId("meal"),
+        id: window.crypto?.randomUUID ? window.crypto.randomUUID() : generateId("meal"),
         date: selectedDate,
         mealType,
         foodItemId: food.id,
@@ -186,9 +59,46 @@ export default function DayLog() {
 
   // 3.3 Add Quick Add handler
   const handleQuickAddFavourite = (mealType, food) => {
-    // v1: always quantity 1
+    // Optional sugar: also set autocomplete/quantity visually (not required, but good UX)
+    setNewMealFoodSearch(food.name);
+    setNewMealFoodId(food.id);
+    setNewQuantity("1");
+    
+    // Add the meal entry
     addMealEntry(mealType, food, 1);
   };
+  
+  // 2.3 Make sure handleAddMeal uses the selected food
+  const handleAddMeal = (e, mealType) => {
+    e.preventDefault();
+    
+    const quantity = parseFloat(newQuantity) || 0;
+    
+    if (!newMealFoodId) {
+      alert("Pick a food from your Foods database first.");
+      return;
+    }
+
+    const food = allFoods.find((f) => f.id === newMealFoodId);
+    if (!food) {
+      alert("Selected food not found. Try again.");
+      return;
+    }
+    
+    if (quantity <= 0) {
+        alert("Quantity must be greater than zero.");
+        return;
+    }
+
+    addMealEntry(mealType, food, quantity);
+
+    // Reset the form state
+    setNewMealFoodSearch("");
+    setNewMealFoodId(null);
+    setNewQuantity("1"); 
+  };
+  
+  // --- Memoized Values & Handlers (existing code) ---
 
   // Get the day log, falling back to an empty object
   const dayLog = useMemo(() => {
@@ -196,7 +106,6 @@ export default function DayLog() {
       state.dayLogs[selectedDate] || {
         date: selectedDate,
         activityFactor: 1.2,
-        // Old hydrationMl is replaced by hydrationLitres in state
         hydrationLitres: 0,
         workoutKcal: 0,
         weightKg: null,
@@ -326,7 +235,7 @@ export default function DayLog() {
         <section key={meal.id} style={{ marginBottom: "1.5rem" }}>
           <h2>{meal.label}</h2>
 
-          {/* 3.4 Render favourite buttons under each meal section */}
+          {/* Quick Add buttons (from previous step) */}
           {favouriteFoods.length > 0 && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
               <div>Quick add favourites:</div>
@@ -345,6 +254,7 @@ export default function DayLog() {
             </div>
           )}
 
+          {/* Meal List */}
           {(mealsByType[meal.id] || []).length === 0 ? (
             <p style={{ fontSize: "0.9rem", opacity: 0.7 }}>
               No entries yet.
@@ -393,12 +303,51 @@ export default function DayLog() {
             </table>
           )}
 
-          <AddMealForm mealType={meal.id} date={selectedDate} />
+          {/* NEW Autocomplete Add Meal Form */}
+          <form onSubmit={(e) => handleAddMeal(e, meal.id)} style={{ marginTop: "0.5rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: 'center' }}>
+              
+              {/* 2.2 Use <FoodAutocomplete /> in the form */}
+              <FoodAutocomplete
+                foods={allFoods}
+                value={newMealFoodSearch}
+                onChangeText={(text) => {
+                  setNewMealFoodSearch(text);
+                  setNewMealFoodId(null); // reset selection if user starts typing again
+                }}
+                onSelectFood={(food) => {
+                  setNewMealFoodSearch(food.name);
+                  setNewMealFoodId(food.id);
+                }}
+                placeholder="Search saved foods…"
+              />
+              
+              {/* Quantity input remains */}
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                placeholder="Qty"
+                value={newQuantity}
+                onChange={(e) => setNewQuantity(e.target.value)}
+                style={{ width: "80px" }}
+              />
+              
+              <button type="submit" disabled={!newMealFoodId || parseFloat(newQuantity) <= 0}>
+                Add
+              </button>
+            </div>
+            {newMealFoodId && (
+                <p style={{ fontSize: "0.8rem", opacity: 0.8, marginTop: "0.25rem" }}>
+                    Selected: {allFoods.find(f => f.id === newMealFoodId)?.name} (Unit: {allFoods.find(f => f.id === newMealFoodId)?.unitLabel})
+                </p>
+            )}
+          </form>
         </section>
       ))}
       
       {/* ------------------------------------------------ */}
-      {/* NEW UI FOR HYDRATION AND NOTES */}
+      {/* NEW UI FOR HYDRATION AND NOTES (existing code) */}
       {/* ------------------------------------------------ */}
 
       <hr style={{ margin: "1.5rem 0" }} />
