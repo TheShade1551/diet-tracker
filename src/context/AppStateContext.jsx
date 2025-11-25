@@ -6,15 +6,18 @@ import React, {
   useReducer,
 } from "react";
 
+// --- NEW: Central definition of meal types (Breakfast removed) ---
+export const MEAL_TYPES = ["lunch", "dinner", "extras"];
+
 const DEFAULT_PROFILE = {
   name: "",
   heightCm: "",
   weightKg: "",
   sex: "male", // or "female"/"other"
-  dailyKcalTarget: 2200, // can tweak later
+  dailyKcalTarget: 2200,
   defaultActivityPreset: "sedentary", // "sedentary" | "college" | "custom"
   defaultActivityFactor: 1.2,
-  proteinTarget: "", // optional, can stay empty
+  proteinTarget: "",
 };
 
 const LOCAL_STORAGE_KEY = "diet-tracker-app-state-v1";
@@ -23,38 +26,11 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 // --------- INITIAL STATE ---------
 const initialState = {
-  // Basic user profile (v1)
   profile: {
     ...DEFAULT_PROFILE,
   },
-
-  // Your personal food DB
-  foodItems: [
-    // example shape:
-    // {
-    //   id: "food-1",
-    //   name: "Chapati",
-    //   category: "home",
-    //   unitLabel: "piece",
-    //   kcalPerUnit: 80,
-    //   isFavourite: false, // NEW field example
-    // }
-  ],
-
-  // Logs keyed by date: "YYYY-MM-DD" -> { ... }
-  dayLogs: {
-    // Example updated shape:
-    // "2025-11-24": {
-    //   date: "2025-11-24",
-    //   activityFactor: 1.2,
-    //   hydrationLitres: 0, // NEW: hydration now in Litres
-    //   workoutKcal: 0,
-    //   weightKg: null,
-    //   notes: "", // NEW
-    //   meals: [ ... ],
-    // },
-  },
-
+  foodItems: [],
+  dayLogs: {},
   selectedDate: todayIso(),
 };
 
@@ -67,7 +43,6 @@ function loadFromStorage() {
 
     const parsed = JSON.parse(raw);
 
-    // Shallow merge so we can evolve the state shape safely
     return {
       ...initialState,
       ...parsed,
@@ -92,21 +67,18 @@ function saveToStorage(state) {
   }
 }
 
-// Ensure a dayLog object always has the same structure
 function ensureDayLog(state, date) {
   const existing = state.dayLogs[date];
   if (existing) return existing;
 
-  // UPDATED DEFAULT SHAPE
   return {
     date,
     activityFactor: state.profile?.defaultActivityFactor ?? 1.2,
     workoutKcal: 0,
     weightKg: null,
-    // Note: hydrationMl from old examples is replaced by hydrationLitres
-    hydrationLitres: 0, // NEW field
-    notes: "", // NEW field
-    meals: [],
+    hydrationLitres: 0,
+    notes: "",
+    meals: [], // Flexible array structure
   };
 }
 
@@ -121,7 +93,6 @@ function appReducer(state, action) {
       };
     }
 
-    // UPDATED: Accept and save isFavourite
     case "UPSERT_FOOD_ITEM": {
       const {
         id,
@@ -129,10 +100,9 @@ function appReducer(state, action) {
         category,
         unitLabel,
         kcalPerUnit,
-        isFavourite = false, // NEW: Default to false if missing
+        isFavourite = false,
       } = action.payload;
 
-      // If id exists -> update; else insert
       const existingIndex = state.foodItems.findIndex((f) => f.id === id);
 
       if (existingIndex >= 0) {
@@ -143,7 +113,7 @@ function appReducer(state, action) {
           category,
           unitLabel,
           kcalPerUnit,
-          isFavourite, // NEW: Save the new value
+          isFavourite,
         };
         return { ...state, foodItems: updated };
       }
@@ -158,7 +128,7 @@ function appReducer(state, action) {
             category,
             unitLabel,
             kcalPerUnit,
-            isFavourite, // NEW: Save the new value
+            isFavourite,
           },
         ],
       };
@@ -221,8 +191,7 @@ function appReducer(state, action) {
         },
       };
     }
-    
-    // 4.1 ADDED: UPDATE_MEAL_ENTRY to allow editing quantity
+
     case "UPDATE_MEAL_ENTRY": {
       const { date, mealId, quantity } = action.payload;
       const dayLog = state.dayLogs[date];
@@ -231,7 +200,6 @@ function appReducer(state, action) {
       const updatedMeals = (dayLog.meals || []).map((m) => {
         if (m.id !== mealId) return m;
 
-        // Safely recompute totalKcal
         const perUnit =
           m.kcalPerUnitSnapshot ??
           (m.quantity ? m.totalKcal / m.quantity : 0);
@@ -243,7 +211,7 @@ function appReducer(state, action) {
           ...m,
           quantity: newQuantity,
           totalKcal: newTotalKcal,
-          kcalPerUnitSnapshot: perUnit, // ensure we have it going forward
+          kcalPerUnitSnapshot: perUnit,
         };
       });
 
@@ -257,7 +225,6 @@ function appReducer(state, action) {
         },
       };
     }
-
 
     case "UPDATE_DAY_META": {
       const { date, patch } = action.payload;
@@ -277,13 +244,10 @@ function appReducer(state, action) {
       };
     }
 
-    // NEW ACTION: Update Hydration
     case "UPDATE_DAY_HYDRATION": {
       const { date, hydrationLitres } = action.payload;
       const dayLogs = { ...state.dayLogs };
-      
-      // Use existing or the full default object
-      const existing = dayLogs[date] || ensureDayLog(state, date); 
+      const existing = dayLogs[date] || ensureDayLog(state, date);
 
       dayLogs[date] = {
         ...existing,
@@ -293,12 +257,9 @@ function appReducer(state, action) {
       return { ...state, dayLogs };
     }
 
-    // NEW ACTION: Update Notes
     case "UPDATE_DAY_NOTES": {
       const { date, notes } = action.payload;
       const dayLogs = { ...state.dayLogs };
-      
-      // Use existing or the full default object
       const existing = dayLogs[date] || ensureDayLog(state, date);
 
       dayLogs[date] = {
@@ -308,7 +269,7 @@ function appReducer(state, action) {
 
       return { ...state, dayLogs };
     }
-    
+
     case "UPDATE_PROFILE": {
       return {
         ...state,
@@ -352,7 +313,6 @@ export function useAppState() {
   return ctx;
 }
 
-// Convenience hook just for profile logic
 export function useProfile() {
   const { state, dispatch } = useAppState();
   const profile = state.profile || DEFAULT_PROFILE;
