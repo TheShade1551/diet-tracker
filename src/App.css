@@ -1,3 +1,35 @@
+/* --- CSS Variables for Light Mode (Default) --- */
+/* Using the provided palette: #ecf4e8, #cbf3bb, #abe7b2, #93bfc7 */
+:root {
+  /* CRITICAL CHANGE: Set the background to the lightest color from the palette */
+  --bg: #f8fcf7; /* Very light/almost white, ensuring high contrast with the sidebar */
+  --card-bg: #FFFFFF; /* Pure white for cards/sidebar panel */
+  
+  /* Accent Colors from the new palette */
+  --accent: #93bfc7; /* Brand color (the cyan/blue from the palette) */
+  --accent-base: #abe7b2; /* Mid-green for active states */
+  
+  /* Text and Muted Colors */
+  --text: #1e3f57; /* Dark blue/green for primary text */
+  --text-dark: #333333; /* Darker shade for better contrast */
+  --muted: #6b7280;
+}
+
+/* --- Dark Mode Overrides --- 
+   >>> REMOVED THIS SECTION TO PREVENT DARK MODE OVERRIDING THE LIGHT THEME <<<
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111827;
+    --card-bg: #1f2937;
+    --text: #ffffff;
+    --muted: #9ca3af;
+    --accent: #0b63ff; 
+    --accent-base: #0b63ff;
+  }
+}
+*/
+
+/* --- Root Container and Global Body Styles --- */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,6 +37,56 @@
   text-align: center;
 }
 
+/* body + layout */
+body {
+  /* Ensures the main DOM background is light */
+  background: var(--bg);
+  color: var(--text);
+  margin: 0; 
+  padding: 0;
+}
+
+/* --- Component Styling --- */
+
+/* Centers the main page content (Dashboard, etc.) and ensures readability */
+.page {
+  display: block; 
+  max-width: 960px; 
+  margin: 0 auto; 
+  text-align: left; 
+  padding: 0 1rem; 
+}
+
+/* card style: used on dashboard tiles for visual separation and shadow */
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 14px;
+  /* Reduced shadow intensity for a lighter theme look */
+  box-shadow: 0 4px 10px rgba(12, 30, 60, 0.04); 
+  color: var(--text);
+}
+
+/* Fix for chart text visibility (numbers in SVGs) */
+.card svg text {
+  fill: var(--text-dark, var(--text)); 
+}
+
+/* subtle heading color */
+.card h2 {
+  color: var(--text-dark, #0f172a); 
+}
+
+/* small muted text */
+.muted {
+  color: var(--muted);
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* --- Default React Logo Animation (Original Content) --- */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -33,10 +115,129 @@
   }
 }
 
-.card {
-  padding: 2em;
+
+/* --- Brand/logo style (Detailed split word, animations, and fix) --- */
+.brand {
+  display: inline-block;
+  padding: 8px 0;
+  position: relative;
+  text-decoration: none;
+  margin: 0; 
 }
 
-.read-the-docs {
-  color: #888;
+.diet, .tracker {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  display: inline-block;
+}
+
+.diet {
+  color: var(--accent); 
+  margin-right: 4px;
+}
+
+.tracker {
+  color: var(--text); 
+  position: relative;
+}
+
+/* Subtle hover effects */
+.brand:hover .diet {
+  transform: translateX(-2px);
+  text-shadow: 2px 2px 8px rgba(147, 191, 199, 0.3); 
+}
+
+.brand:hover .tracker {
+  transform: translateX(2px);
+  color: var(--accent); 
+}
+
+/* Magical underline effect */
+.brand::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  /* Updated gradient to use the new accent colors for the line */
+  background: linear-gradient(90deg, var(--accent), #abe7b2, var(--accent));
+  background-size: 200% 100%;
+  transition: width 0.4s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.brand:hover::after {
+  width: 100%;
+  opacity: 1;
+  animation: shimmerLine 2s ease-in-out infinite;
+}
+
+/* Subtle glow effect on hover */
+.brand:hover .diet,
+.brand:hover .tracker {
+  filter: drop-shadow(0 0 8px rgba(147, 191, 199, 0.2)); 
+}
+
+/* 3D text effect on hover */
+.brand:hover .diet {
+  background: linear-gradient(135deg, var(--accent-base) 0%, var(--accent) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Elegant shimmer animation for the underline */
+@keyframes shimmerLine {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Focus state for accessibility */
+.brand:focus {
+  outline: 2px solid rgba(147, 191, 199, 0.3);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Active state */
+.brand:active .diet,
+.brand:active .tracker {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .diet, .tracker {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .diet, .tracker {
+    font-size: 1.1rem;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .brand::after,
+  .diet,
+  .tracker {
+    animation: none;
+    transition: none;
+  }
+  
+  .brand:hover .diet,
+  .brand:hover .tracker {
+    transform: none;
+  }
 }

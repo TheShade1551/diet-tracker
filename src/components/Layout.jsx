@@ -1,16 +1,13 @@
-// src/components/Layout.jsx
 import React, { useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
-import "../App.css"
-// You may need to update this path if your global styles aren't in App.css
-// import "./App.css"; 
+import "../App.css";
 
 export default function Layout() {
-  // 1. State to manage the sidebar open/closed status
+  // State to manage the sidebar open/closed status
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // The navigation links were extracted from your original <nav>
+  // The navigation links structure to be passed to the Sidebar
   const navLinks = [
     { to: "/", label: "Dashboard", end: true },
     { to: "/day-log", label: "Day Log" },
@@ -19,35 +16,28 @@ export default function Layout() {
     { to: "/settings", label: "Settings" },
   ];
 
-  // 2. Function to toggle sidebar (can be passed to a menu icon)
-  const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev);
-  };
-
   return (
     <div className="app-root">
-      {/* 3. Integrate the new Sidebar component */}
+      {/* Integrate the Sidebar component */}
       <Sidebar 
         open={sidebarOpen} 
         setOpen={setSidebarOpen} 
-        compact={true} // or false, depending on the desired behavior
-        navLinks={navLinks} // Passing the links to the Sidebar
+        compact={true}
+        navLinks={navLinks}
       />
 
-      {/* 4. The main content area, with conditional "dimmed" class */}
+      {/* The main content area, with conditional "dimmed" class for overlay effect */}
       <div className={`main-area ${sidebarOpen ? "dimmed" : ""}`}>
         
-        {/* Replacing the old app-header with the new topbar pattern */}
         <header className="topbar">
           <div className="topbar-left">
-            {/* Menu button to open/close sidebar */}
-            <button className="menu-toggle-btn" onClick={toggleSidebar}>
-                ☰
-            </button>
-            {/* Small logo/title that routes to the home page */}
-            <div className="mini-logo" onClick={() => window.location.assign("/")}>
-                Diet<span>Tracker</span>
-            </div>
+            
+            {/* Styled Brand Logo/Title using the new 'brand' class with split spans */}
+            <h1 className="brand" onClick={() => window.location.assign("/")}>
+                <span className="diet">Diet</span>
+                <span className="tracker">Tracker</span>
+            </h1>
+            
           </div>
           <div className="topbar-right">
             {/* any top controls / user info */}
@@ -55,7 +45,6 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* The main content area where pages are rendered */}
         <main className="content">
           <div className="page">
             <Outlet />
