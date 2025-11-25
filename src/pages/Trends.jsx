@@ -1,6 +1,11 @@
 // src/pages/Trends.jsx
 import React, { useMemo, useState } from "react";
 import { useAppState } from "../context/AppStateContext";
+import { 
+  computeDayMealTotals, 
+  computeTDEEForDay, 
+  calculateEffectiveWorkout 
+} from "../utils/calculations";
 import {
   LineChart,
   Line,
@@ -11,62 +16,60 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { TrendingUp, Scale, Save } from "lucide-react";
 
-function calcDayIntake(day) {
-  if (!day || !day.meals) return 0;
-  return day.meals.reduce((sum, m) => sum + (m.totalKcal || 0), 0);
-}
+import "../styles/Trends.css";
 
 export default function Trends() {
   const { state, dispatch } = useAppState();
   const { profile, dayLogs, selectedDate } = state;
 
-  const dailyTarget = Number(profile.dailyKcalTarget) || 0;
-
-  // Local weight input state (kg)
+  // Local weight input state
   const [weightInput, setWeightInput] = useState("");
 
-  // Derived data: calories vs target per day
+  // 1. Prepare Calorie Series (Dynamic TDEE)
   const calorieSeries = useMemo(() => {
     const days = Object.values(dayLogs || {});
+    // Sort by date
     const sorted = days
       .filter((d) => d && d.date)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return sorted.map((day) => {
-      const intake = calcDayIntake(day);
+      // Actual Intake
+      const { total: intake } = computeDayMealTotals(day);
+      
+      // Dynamic Target = Base TDEE + Effective Workout
+      const baseTdee = computeTDEEForDay(day, profile);
+      const workout = calculateEffectiveWorkout(day);
+      const dynamicTarget = baseTdee + workout;
+
       return {
         date: day.date,
-        intake,
-        target: dailyTarget,
+        intake: Math.round(intake),
+        target: Math.round(dynamicTarget),
       };
     });
-  }, [dayLogs, dailyTarget]);
+  }, [dayLogs, profile]);
 
-  // Derived data: weight history
+  // 2. Prepare Weight Series
   const weightSeries = useMemo(() => {
     const days = Object.values(dayLogs || {});
     const withWeight = days.filter(
-      (d) =>
-        d &&
-        d.date &&
-        d.weightKg !== null &&
-        d.weightKg !== undefined &&
-        d.weightKg !== ""
+      (d) => d && d.date && d.weightKg != null && d.weightKg !== ""
     );
-    const sorted = withWeight.sort((a, b) =>
-      a.date < b.date ? -1 : a.date > b.date ? 1 : 0
-    );
+    
+    const sorted = withWeight.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
     return sorted.map((day) => ({
       date: day.date,
       weight: Number(day.weightKg),
     }));
   }, [dayLogs]);
 
-  const handleSelectedDateChange = (e) => {
-    const newDate = e.target.value;
-    if (!newDate) return;
-    dispatch({ type: "SET_SELECTED_DATE", payload: newDate });
+  // Handlers
+  const handleDateChange = (e) => {
+    dispatch({ type: "SET_SELECTED_DATE", payload: e.target.value });
   };
 
   const handleSaveWeight = () => {
@@ -81,151 +84,159 @@ export default function Trends() {
       },
     });
 
-    // Simple feedback on save
-    alert(`Weight ${v} kg saved for ${selectedDate}`);
-    // setWeightInput(""); // Optionally clear input
+    setWeightInput("");
+    alert(`Saved ${v}kg for ${selectedDate}`);
   };
 
-  const hasCalorieData = calorieSeries.length > 1; // Need at least 2 points for a trend line
+  const hasCalorieData = calorieSeries.length > 1;
   const hasWeightData = weightSeries.length > 1;
 
   return (
-    <>
-      {/* 1. Page Header */}
-      <div className="page-header">
-        <h1 className="page-title">Health Trends</h1>
-        <p className="page-subtitle">
-          Visualize your progress over time.
+    <div className="trends-page">
+      
+      {/* Header */}
+      <div className="trends-header">
+        <h1 className="trends-title">
+          <TrendingUp size={32} color="#3182ce" /> Health Trends
+        </h1>
+        <p className="trends-subtitle">
+          Visualize your calorie adherence and weight progress over time.
         </p>
       </div>
-      
-      <hr />
 
-      {/* 2. Weight logging card */}
-      <section className="section-spacer">
-        <div className="card form-card">
-          <div className="card-header">
-            <h2 className="card-title">Log Weight</h2>
+      {/* 1. Weight Logger */}
+      <section className="trends-card">
+        <div className="section-title"><Scale size={20}/> Log Weight Check-in</div>
+        
+        <div className="weight-log-grid">
+          <div className="form-group">
+            <label>Date</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              className="trends-input"
+            />
           </div>
           
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="log-date">Date</label>
-              <input
-                id="log-date"
-                type="date"
-                value={selectedDate}
-                onChange={handleSelectedDateChange}
-                className="input-full"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="log-weight">Weight (kg)</label>
-              <input
-                id="log-weight"
-                type="number"
-                step="0.1"
-                min="0"
-                value={weightInput}
-                onChange={(e) => setWeightInput(e.target.value)}
-                className="input-full"
-              />
-            </div>
+          <div className="form-group">
+            <label>Weight (kg)</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              placeholder="e.g. 75.5"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              className="trends-input"
+            />
           </div>
           
-          <div className="btn-row justify-end pt-1">
-            <button 
-                onClick={handleSaveWeight} 
-                className="btn-primary"
-                disabled={!selectedDate || !weightInput}
-            >
-                Save Weight
-            </button>
-          </div>
-          
-          <p className="muted mt-1">
-            Tip: Select the date you want to log and enter your weight.
-          </p>
+          <button 
+            onClick={handleSaveWeight} 
+            className="btn-save-weight"
+            disabled={!selectedDate || !weightInput}
+          >
+            <Save size={18} /> Save
+          </button>
         </div>
       </section>
-      
-      <hr />
 
-      {/* 3. Calories vs target chart */}
-      <section className="section-spacer">
-        <h2 className="section-title">Daily Calorie Intake vs Target</h2>
+      {/* 2. Calorie Chart */}
+      <section className="trends-card">
+        <div className="section-title">Calorie Intake vs. Target (TDEE)</div>
+        
         {!hasCalorieData ? (
-          <p className="muted">
-            No data yet. Log at least two days of meals to see the trend.
-          </p>
+          <div className="empty-chart-msg">
+            Not enough data yet. Log meals for at least two days to see your trend line.
+          </div>
         ) : (
-          <div style={{ width: "100%", height: 350 }}>
+          <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={calorieSeries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
-                <XAxis dataKey="date" stroke="#666" />
-                <YAxis unit=" kcal" stroke="#666" />
+              <LineChart data={calorieSeries} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
+                <XAxis 
+                    dataKey="date" 
+                    stroke="#718096" 
+                    tick={{fontSize: 12}}
+                    tickFormatter={(str) => str.slice(5)} // Show MM-DD only
+                />
+                <YAxis stroke="#718096" tick={{fontSize: 12}} />
                 <Tooltip 
-                  formatter={(value, name) => [`${value} kcal`, name]}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                 />
                 <Legend />
+                
+                {/* Intake Line */}
                 <Line
                   type="monotone"
                   dataKey="intake"
                   name="Intake"
-                  stroke="#2E86C1"
-                  dot={false}
-                  strokeWidth={2}
+                  stroke="#3182ce"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
                 />
+                
+                {/* Dynamic Target Line (TDEE) */}
                 <Line
                   type="monotone"
                   dataKey="target"
-                  name="Target"
-                  stroke="#E74C3C"
+                  name="Target (TDEE)"
+                  stroke="#e53e3e"
+                  strokeWidth={2}
                   strokeDasharray="5 5"
                   dot={false}
-                  strokeWidth={2}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         )}
       </section>
-      
-      <hr />
 
-      {/* 4. Weight chart */}
-      <section className="section-spacer">
-        <h2 className="section-title">Weight Trend (kg)</h2>
+      {/* 3. Weight Chart */}
+      <section className="trends-card">
+        <div className="section-title">Weight History</div>
+        
         {!hasWeightData ? (
-          <p className="muted">
-            No weight data yet. Log your weight above for at least two different dates to see the trend.
-          </p>
+          <div className="empty-chart-msg">
+            No weight trend yet. Log your weight on different days to see the curve.
+          </div>
         ) : (
-          <div style={{ width: "100%", height: 350 }}>
+          <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weightSeries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
-                <XAxis dataKey="date" stroke="#666" />
-                <YAxis unit=" kg" domain={['auto', 'auto']} stroke="#666" />
+              <LineChart data={weightSeries} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
+                <XAxis 
+                    dataKey="date" 
+                    stroke="#718096" 
+                    tick={{fontSize: 12}}
+                    tickFormatter={(str) => str.slice(5)}
+                />
+                <YAxis 
+                    stroke="#718096" 
+                    domain={['auto', 'auto']} // Auto-scale to show weight changes clearly
+                    tick={{fontSize: 12}} 
+                />
                 <Tooltip 
-                   formatter={(value, name) => [`${value} kg`, name]}
+                  formatter={(value) => [`${value} kg`, "Weight"]}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                 />
                 <Legend />
-                <Line 
-                    type="monotone" 
-                    dataKey="weight" 
-                    name="Weight" 
-                    stroke="#27AE60" 
-                    dot={{ r: 4 }} 
-                    strokeWidth={2}
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  name="Weight (kg)"
+                  stroke="#38a169" /* Green */
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#38a169' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         )}
       </section>
-    </>
+
+    </div>
   );
 }

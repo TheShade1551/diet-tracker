@@ -1,0 +1,144 @@
+/* src/styles/Trends.css */
+
+/* --- Page Layout --- */
+.trends-page {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  font-family: inherit;
+}
+
+/* --- Header --- */
+.trends-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.trends-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.trends-subtitle {
+  color: #718096;
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+}
+
+/* --- Sections & Cards --- */
+.trends-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --- Weight Log Form --- */
+.weight-log-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 1.5rem;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trends-input {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #2d3748;
+  background: #fff;
+  outline: none;
+  transition: border 0.2s;
+  width: 100%;
+}
+
+.trends-input:focus {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+.btn-save-weight {
+  background-color: #3182ce;
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  height: 42px; /* Match input height */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-save-weight:hover:not(:disabled) {
+  background-color: #2b6cb0;
+}
+
+.btn-save-weight:disabled {
+  background-color: #cbd5e0;
+  cursor: not-allowed;
+}
+
+/* --- Charts --- */
+.chart-container {
+  width: 100%;
+  height: 400px;
+  margin-top: 1rem;
+}
+
+.empty-chart-msg {
+  text-align: center;
+  color: #a0aec0;
+  font-style: italic;
+  padding: 3rem;
+  background: #f7fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .weight-log-grid {
+    grid-template-columns: 1fr;
+  }
+  .btn-save-weight {
+    width: 100%;
+    justify-content: center;
+  }
+}

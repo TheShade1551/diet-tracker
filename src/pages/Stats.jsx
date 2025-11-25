@@ -45,11 +45,19 @@ export default function Stats() {
       const rawDate = d.date ?? d.day ?? d.dateString ?? d.isoDate ?? d.loggedAt ?? d.key ?? "";
       const dateKey = dateToKey(rawDate);
 
-      // 1. Use Centralized Logic
+      // 1. Calculations
       const { lunch, dinner, extras, total } = computeDayMealTotals(d);
-      const tdee = computeTDEEForDay(d, profile);
+      
+      // A. Base TDEE (BMR * Activity)
+      const baseTdee = computeTDEEForDay(d, profile);
+      
+      // B. Effective Workout (Raw * Intensity)
       const effectiveWorkout = calculateEffectiveWorkout(d);
       
+      // C. ✅ TOTAL TARGET = Base + Workout
+      // This is what we want to show in the "Target/TDEE" column
+      const dailyTarget = baseTdee + effectiveWorkout;
+
       const activityFactor = safeGet(d, "activityFactor") ?? profile?.defaultActivityFactor ?? "-";
       
       // Logic: Show Intensity only if workout exists and is non-zero
@@ -58,15 +66,11 @@ export default function Stats() {
         ? Number(d.intensityFactor).toFixed(2) 
         : "-";
 
-      // Net Deficit = (Limit) - Intake
-      // Limit = Base TDEE + Effective Workout
-      const dailyLimit = tdee + effectiveWorkout;
-      const deficit = dailyLimit - total;
+      // Net Deficit = Target - Intake
+      const deficit = dailyTarget - total;
       
-      // Weight Change (Kg) -> Deficit / 7700
+      // Weight Change (Kg) -> Deficit / 7700 
       // Positive Deficit (Burned more) -> Weight Loss (Negative KG)
-      // Negative Deficit (Ate more) -> Weight Gain (Positive KG)
-      // Formula: -(Deficit / 7700)
       const gainLossKg = -(deficit / 7700); 
 
       // Strings for CSV export
@@ -81,17 +85,18 @@ export default function Stats() {
       return {
         id: d.id ?? d.key ?? idx,
         date: dateKey,
-        tdee,
+        tdee: dailyTarget, // ✅ Now stores the FULL daily target
+        baseTdee,          // Store base separately if needed
         activityFactor,
         intensityFactor: intensityFactorDisplay,
-        workoutKcal,      // Raw
-        effectiveWorkout, // Effective
+        workoutKcal,      
+        effectiveWorkout, 
         lunch,
         dinner,
         extras,
         total,
-        deficit, // Positive is good (under limit)
-        gainLossKg, // Negative is loss (good), Positive is gain
+        deficit, 
+        gainLossKg,
         
         // CSV Helpers
         lunchText: d.meals ? getMealText("lunch") : "",
@@ -146,7 +151,7 @@ export default function Stats() {
   // --- Export Helpers ---
   function downloadCSV() {
     const headers = [
-      "Sr", "Date", "TDEE", "AF", "IF", "Workout_Raw", "Workout_Effective",
+      "Sr", "Date", "Daily_Target", "AF", "IF", "Workout_Raw", "Workout_Effective",
       "Lunch_Kcal", "Dinner_Kcal", "Extras_Kcal", "Total_Kcal", 
       "Deficit", "Est_Weight_Change_Kg",
       "Lunch_Items", "Dinner_Items", "Extras_Items"
@@ -156,7 +161,7 @@ export default function Stats() {
       const row = [
         i + 1 + page * pageSize,
         `"${String(r.date || "")}"`,
-        r.tdee,
+        r.tdee, // Includes workout
         r.activityFactor,
         r.intensityFactor,
         r.workoutKcal,
@@ -196,7 +201,6 @@ export default function Stats() {
   const allTime = useMemo(() => {
     const totalDays = rows.length;
     const totalDeficit = rows.reduce((s, r) => s + (r.deficit || 0), 0);
-    // Sum of kg changes
     const totalGainKg = rows.reduce((s, r) => s + (r.gainLossKg || 0), 0);
     const totalCaloriesConsumed = rows.reduce((s, r) => s + (r.total || 0), 0);
     return { totalDays, totalDeficit, totalGainKg, totalCaloriesConsumed };
@@ -211,7 +215,6 @@ export default function Stats() {
         <div className="summary-row">
           <div>Entries: <strong>{allTime.totalDays}</strong></div>
           <div>Net Deficit: <strong>{allTime.totalDeficit}</strong></div>
-          {/* Negative KG change = Weight Loss (Good) */}
           <div>Est. Change: <strong style={{color: allTime.totalGainKg <= 0 ? '#38a169' : '#e53e3e'}}>
             {allTime.totalGainKg > 0 ? "+" : ""}{allTime.totalGainKg.toFixed(3)} kg
           </strong></div>
@@ -277,7 +280,10 @@ export default function Stats() {
             <tr>
               <th>Sr.</th>
               <th>Date</th>
-              <th>TDEE</th>
+              
+              {/* ✅ Renamed TDEE -> Target to reflect Base + Workout */}
+              <th>Target</th> 
+              
               <th>AF</th>
               <th>IF</th>
               <th>Workout</th>
@@ -302,7 +308,9 @@ export default function Stats() {
                   {String(r.date ?? "").slice(0, 10)}
                 </td>
 
+                {/* Target now includes Workout */}
                 <td>{fmtNum(r.tdee)}</td>
+                
                 <td>{r.activityFactor}</td>
                 <td>{r.intensityFactor}</td>
                 <td>{fmtNum(r.effectiveWorkout)}</td>
@@ -313,12 +321,10 @@ export default function Stats() {
                 
                 <td><strong>{fmtNum(r.total)}</strong></td>
                 
-                {/* Positive Deficit = Green (Good) */}
                 <td className={r.deficit >= 0 ? "text-green" : "text-red"}>
                     <strong>{r.deficit > 0 ? "+" : ""}{fmtNum(r.deficit)}</strong>
                 </td>
                 
-                {/* Negative KG = Green (Loss), Positive KG = Red (Gain) */}
                 <td className={r.gainLossKg <= 0 ? "text-green" : "text-red"}>
                   {r.gainLossKg > 0 ? "+" : ""}{r.gainLossKg.toFixed(3)} kg
                 </td>

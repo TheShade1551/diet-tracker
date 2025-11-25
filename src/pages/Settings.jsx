@@ -1,355 +1,402 @@
-// src/pages/Stats.jsx
-import React, { useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAppState } from "../context/AppStateContext";
-import { X, Calendar as CalendarIcon, ArrowRight, Download } from "lucide-react"; 
-
-// Import separate CSS
-import "../styles/Stats.css";
-
-// Import extracted logic
+// src/pages/Settings.jsx
+import React, { useState } from "react";
+import { useProfile, useAppState } from "../context/AppStateContext";
 import { 
-  dateToKey, 
-  fmtNum, 
-  computeDayMealTotals, 
-  computeTDEEForDay, 
-  calculateEffectiveWorkout,
-  safeGet 
-} from "../utils/calculations";
+  Save, Download, Upload, AlertTriangle, 
+  User, Activity, Database, CheckCircle, XCircle 
+} from "lucide-react";
 
-export default function Stats() {
-  const { state } = useAppState();
-  const navigate = useNavigate(); 
-  const profile = state?.profile ?? {};
+import "../styles/Settings.css";
+
+// --- DATA HELPERS ---
+const CURRENT_APP_VERSION = "1.0"; 
+
+const downloadJsonFile = (data, filename) => {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// ✅ NEW: Sanitize function for backward compatibility
+const sanitizeImportedState = (state) => {
+  // 1. Ensure Profile Exists
+  state.profile = state.profile || {};
   
-  const dateInputRef = useRef(null);
+  // Fix Missing BMR
+  if (!("bmr" in state.profile) || state.profile.bmr === undefined) {
+    state.profile.bmr = null; 
+  }
 
-  // --- State ---
-  const [pickedDate, setPickedDate] = useState("");
-  const [pageSize, setPageSize] = useState(25);
-  const [page, setPage] = useState(0);
+  // 2. Standardize Day Logs
+  // Support legacy backups that might have used 'days' instead of 'dayLogs'
+  const logs = state.dayLogs || state.days || {};
+  state.dayLogs = logs;
+  
+  // Remove legacy key if it existed to keep state clean
+  if (state.days) delete state.days;
 
-  // --- Data Processing ---
-  const rawDays =
-    state?.days ??
-    state?.dayLogs ??
-    state?.dayLogEntries ??
-    state?.entries ??
-    state?.logs ??
-    [];
+  const defaultAF = Number(state.profile.defaultActivityFactor) || 1.2;
 
-  const rows = useMemo(() => {
-    const arr = Array.isArray(rawDays) ? [...rawDays] : Object.values(rawDays || {});
+  // Iterate through every day to ensure new fields exist
+  Object.keys(state.dayLogs).forEach(date => {
+    const d = state.dayLogs[date];
+    if (!d) return;
+
+    // Fix Workout Calories
+    if (!("workoutCalories" in d)) {
+        // Try to recover from legacy 'workoutKcal' if it exists, else 0
+        d.workoutCalories = d.workoutKcal ? Number(d.workoutKcal) : 0;
+    }
+
+    // Fix Intensity Factor
+    if (!("intensityFactor" in d)) {
+        d.intensityFactor = null;
+    }
+
+    // Fix Activity Factor
+    if (!("activityFactor" in d)) {
+        d.activityFactor = defaultAF;
+    }
+  });
+
+  return state;
+};
+
+const validateImportData = (data) => {
+  if (!data || typeof data !== 'object') return { valid: false, message: "File is empty or corrupted." };
+  if (!data.meta || !data.state) return { valid: false, message: "Invalid file structure." };
+  if (data.meta.app !== "diet-tracker") return { valid: false, message: "File is not a valid Diet Tracker backup." };
+
+  if (data.meta.version !== CURRENT_APP_VERSION) {
+    console.warn(`Version mismatch: Imported V${data.meta.version}, app V${CURRENT_APP_VERSION}.`);
+  }
+
+  // Check if using dayLogs or days for count
+  const logs = data.state.dayLogs || data.state.days || {};
+
+  const summary = {
+    version: data.meta.version,
+    exportedAt: data.meta.exportedAt ? new Date(data.meta.exportedAt).toLocaleString() : 'N/A',
+    foodItemsCount: data.state.foodItems ? data.state.foodItems.length : 0,
+    dayLogsCount: Object.keys(logs).length,
+  };
+  
+  return { valid: true, summary, state: data.state, version: data.meta.version };
+};
+
+export default function Settings() {
+  const { state, dispatch } = useAppState();
+  const { profile, saveProfile } = useProfile();
+
+  const [form, setForm] = useState({
+    name: profile.name || "",
+    heightCm: profile.heightCm ?? "",
+    weightKg: profile.weightKg ?? "",
+    sex: profile.sex || "male",
+    bmr: profile.bmr ?? "", 
+    defaultActivityPreset: profile.defaultActivityPreset || "sedentary",
+    defaultActivityFactor: profile.defaultActivityFactor ?? 1.2,
+    proteinTarget: profile.proteinTarget ?? "",
+  });
+  
+  const [feedback, setFeedback] = useState(null);
+  const [importData, setImportData] = useState(null);
+  const [importError, setImportError] = useState(null);
+
+  // Dynamic TDEE Preview
+  const currentBmr = Number(form.bmr) || 0;
+  const currentAf = Number(form.defaultActivityFactor) || 1.2;
+  const previewTDEE = Math.round(currentBmr * currentAf);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "defaultActivityPreset") {
+        let newFactor = 1.2;
+        if (value === "sedentary") newFactor = 1.2;
+        if (value === "light") newFactor = 1.375;
+        if (value === "moderate") newFactor = 1.55;
+        if (value === "college") newFactor = 1.725;
+        if (value !== "custom") next.defaultActivityFactor = newFactor;
+      }
+      return next;
+    });
+    setFeedback(null);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const toNumberOrEmpty = (v) => v === "" ? "" : Number.isNaN(Number(v)) ? "" : Number(v);
+
+    saveProfile({
+      ...form,
+      heightCm: toNumberOrEmpty(form.heightCm),
+      weightKg: toNumberOrEmpty(form.weightKg),
+      bmr: toNumberOrEmpty(form.bmr),
+      defaultActivityFactor: Number(form.defaultActivityFactor) || 1.2,
+      proteinTarget: toNumberOrEmpty(form.proteinTarget),
+      // Legacy support
+      dailyKcalTarget: Math.round(Number(form.bmr || 0) * (Number(form.defaultActivityFactor) || 1.2)) || 2200
+    });
+
+    setFeedback({ type: 'success', message: 'Profile settings saved successfully!' });
+  };
+  
+  const handleExport = (isPreImportBackup = false) => {
+    const data = {
+      meta: { version: CURRENT_APP_VERSION, app: "diet-tracker", exportedAt: new Date().toISOString() },
+      state: state,
+    };
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 15);
+    const filename = `diet-tracker-${isPreImportBackup ? 'backup' : 'export'}-${timestamp}.json`;
+
+    try {
+      downloadJsonFile(data, filename);
+      if (!isPreImportBackup) setFeedback({ type: 'success', message: `Data exported as ${filename}` });
+      return { success: true, filename };
+    } catch (error) {
+       console.error("Export failed:", error);
+       return { success: false, error };
+    }
+  };
+  
+  const handleFileChange = (event) => {
+    setImportData(null);
+    setImportError(null);
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const rawData = JSON.parse(e.target.result);
+        const result = validateImportData(rawData);
+        if (result.valid) setImportData(result);
+        else setImportError(result.message);
+      } catch (error) {
+        setImportError("Invalid JSON file.");
+      }
+      event.target.value = null;
+    };
+    reader.readAsText(file);
+  };
+  
+  const performImport = (doBackup) => {
+    if (!importData) return;
     
-    const mapped = arr.map((d, idx) => {
-      const rawDate = d.date ?? d.day ?? d.dateString ?? d.isoDate ?? d.loggedAt ?? d.key ?? "";
-      const dateKey = dateToKey(rawDate);
-
-      // 1. Calculations
-      const { lunch, dinner, extras, total } = computeDayMealTotals(d);
-      
-      // A. Base TDEE (BMR * Activity)
-      const baseTdee = computeTDEEForDay(d, profile);
-      
-      // B. Effective Workout (Raw * Intensity)
-      const effectiveWorkout = calculateEffectiveWorkout(d);
-      
-      // C. ✅ TOTAL TARGET = Base + Workout
-      // This is what we want to show in the "Target/TDEE" column
-      const dailyTarget = baseTdee + effectiveWorkout;
-
-      const activityFactor = safeGet(d, "activityFactor") ?? profile?.defaultActivityFactor ?? "-";
-      
-      // Logic: Show Intensity only if workout exists and is non-zero
-      const workoutKcal = d.workoutCalories ?? d.workoutKcal ?? 0;
-      const intensityFactorDisplay = (workoutKcal > 0 && d.intensityFactor) 
-        ? Number(d.intensityFactor).toFixed(2) 
-        : "-";
-
-      // Net Deficit = Target - Intake
-      const deficit = dailyTarget - total;
-      
-      // Weight Change (Kg) -> Deficit / 7700 
-      // Positive Deficit (Burned more) -> Weight Loss (Negative KG)
-      const gainLossKg = -(deficit / 7700); 
-
-      // Strings for CSV export
-      const getMealText = (type) => {
-          if (!d.meals) return "";
-          return d.meals
-            .filter(m => (m.mealType || "").toLowerCase() === type)
-            .map(m => `${m.foodNameSnapshot} (${m.totalKcal})`)
-            .join(", ");
+    // 1. Backup Logic
+    if (doBackup) {
+      const backup = handleExport(true);
+      if (!backup.success) {
+        setFeedback({ type: 'error', message: "Backup failed. Import cancelled." });
+        return;
       }
+    }
 
-      return {
-        id: d.id ?? d.key ?? idx,
-        date: dateKey,
-        tdee: dailyTarget, // ✅ Now stores the FULL daily target
-        baseTdee,          // Store base separately if needed
-        activityFactor,
-        intensityFactor: intensityFactorDisplay,
-        workoutKcal,      
-        effectiveWorkout, 
-        lunch,
-        dinner,
-        extras,
-        total,
-        deficit, 
-        gainLossKg,
+    try {
+        // 2. Sanitize Data before import
+        const cleanState = sanitizeImportedState(importData.state);
+
+        // 3. Dispatch Import
+        dispatch({ type: "IMPORT_STATE", payload: cleanState });
         
-        // CSV Helpers
-        lunchText: d.meals ? getMealText("lunch") : "",
-        dinnerText: d.meals ? getMealText("dinner") : "",
-        extrasText: d.meals ? (getMealText("extra") || getMealText("extras")) : "",
-      };
-    });
-
-    // Sort descending by date
-    mapped.sort((a, b) => {
-      if (a.date && b.date) {
-        const ad = new Date(a.date).getTime();
-        const bd = new Date(b.date).getTime();
-        if (!isNaN(ad) && !isNaN(bd)) return bd - ad;
-      }
-      return 0;
-    });
-
-    // Filter by single date if picked
-    if (pickedDate) {
-      return mapped.filter(r => r.date === pickedDate);
-    }
-    return mapped;
-  }, [rawDays, state, profile, pickedDate]);
-
-  // --- Pagination ---
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
-  const visible = rows.slice(page * pageSize, (page + 1) * pageSize);
-
-  // --- Actions ---
-  const handleOpenDayLog = () => {
-    if (pickedDate) navigate(`/day-log?date=${pickedDate}`);
-  };
-
-  const handleRowClick = (date) => {
-    if(date) navigate(`/day-log?date=${date}`);
-  };
-
-  const clearFilter = () => {
-    setPickedDate(""); 
-    setPage(0);
-  };
-
-  const handleDateWrapperClick = () => {
-    if (dateInputRef.current && dateInputRef.current.showPicker) {
-        dateInputRef.current.showPicker();
-    } else if (dateInputRef.current) {
-        dateInputRef.current.focus();
+        setImportData(null);
+        setFeedback({ type: 'success', message: `Import successful (V${importData.version})` });
+    } catch (e) {
+        console.error(e);
+        setFeedback({ type: 'error', message: 'Import failed due to an internal error.' });
     }
   };
-
-  // --- Export Helpers ---
-  function downloadCSV() {
-    const headers = [
-      "Sr", "Date", "Daily_Target", "AF", "IF", "Workout_Raw", "Workout_Effective",
-      "Lunch_Kcal", "Dinner_Kcal", "Extras_Kcal", "Total_Kcal", 
-      "Deficit", "Est_Weight_Change_Kg",
-      "Lunch_Items", "Dinner_Items", "Extras_Items"
-    ];
-    const csvRows = [headers.join(",")];
-    visible.forEach((r, i) => {
-      const row = [
-        i + 1 + page * pageSize,
-        `"${String(r.date || "")}"`,
-        r.tdee, // Includes workout
-        r.activityFactor,
-        r.intensityFactor,
-        r.workoutKcal,
-        r.effectiveWorkout,
-        r.lunch,
-        r.dinner,
-        r.extras,
-        r.total,
-        r.deficit,
-        r.gainLossKg.toFixed(4),
-        `"${(r.lunchText || "").replace(/"/g, '""')}"`,
-        `"${(r.dinnerText || "").replace(/"/g, '""')}"`,
-        `"${(r.extrasText || "").replace(/"/g, '""')}"`
-      ];
-      csvRows.push(row.join(","));
-    });
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `diet-stats-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function downloadJSON() {
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `diet-stats-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // --- Summaries ---
-  const allTime = useMemo(() => {
-    const totalDays = rows.length;
-    const totalDeficit = rows.reduce((s, r) => s + (r.deficit || 0), 0);
-    const totalGainKg = rows.reduce((s, r) => s + (r.gainLossKg || 0), 0);
-    const totalCaloriesConsumed = rows.reduce((s, r) => s + (r.total || 0), 0);
-    return { totalDays, totalDeficit, totalGainKg, totalCaloriesConsumed };
-  }, [rows]);
+  
+  const handleCancelImport = () => {
+    setImportData(null);
+    setImportError(null);
+  };
 
   return (
-    <div className="stats-page container-card">
+    <div className="settings-page">
       
-      {/* 1. Summary Header */}
-      <header className="stats-header">
-        <h2>{pickedDate ? "Single Day Summary" : "All-time Summary"}</h2>
-        <div className="summary-row">
-          <div>Entries: <strong>{allTime.totalDays}</strong></div>
-          <div>Net Deficit: <strong>{allTime.totalDeficit}</strong></div>
-          <div>Est. Change: <strong style={{color: allTime.totalGainKg <= 0 ? '#38a169' : '#e53e3e'}}>
-            {allTime.totalGainKg > 0 ? "+" : ""}{allTime.totalGainKg.toFixed(3)} kg
-          </strong></div>
-          <div>Total Intake: <strong>{allTime.totalCaloriesConsumed}</strong></div>
+      {/* Header */}
+      <div className="settings-header">
+        <h1 className="settings-title">Profile Settings</h1>
+        <p className="settings-subtitle">
+          Manage your personal details, BMR configuration, and data backups.
+        </p>
+      </div>
+      
+      {/* Feedback Box */}
+      {feedback && (
+        <div className={`feedback-box ${feedback.type === 'success' ? 'feedback-success' : 'feedback-error'}`}>
+          {feedback.type === 'success' ? <CheckCircle size={20}/> : <XCircle size={20}/>}
+          {feedback.message}
         </div>
-      </header>
+      )}
 
-      {/* 2. Controls Section */}
-      <div className="stats-controls">
-        {/* Left: Custom Date Picker */}
-        <div className="left">
-            <div className="custom-date-picker" onClick={handleDateWrapperClick}>
-                <CalendarIcon size={16} className="calendar-icon-overlay" />
-                <input 
-                  ref={dateInputRef}
-                  type="date" 
-                  value={pickedDate} 
-                  onChange={(e) => { setPickedDate(e.target.value); setPage(0); }}
-                  className="input-date-hidden-ui"
-                  placeholder="Jump to Date"
-                />
+      {/* 1. Profile Form */}
+      <section className="settings-card">
+        <form onSubmit={handleSubmit}>
+          
+          {/* Personal Info */}
+          <div className="section-title"><User size={20}/> Personal Information</div>
+          <div className="form-grid-3">
+            <div className="form-group span-2">
+              <label htmlFor="name">Name</label>
+              <input id="name" name="name" type="text" value={form.name} onChange={handleChange} />
             </div>
+            <div className="form-group">
+              <label htmlFor="sex">Sex</label>
+              <select id="sex" name="sex" value={form.sex} onChange={handleChange}>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label htmlFor="heightCm">Height (cm)</label>
+              <input id="heightCm" name="heightCm" type="number" min="0" step="0.1" value={form.heightCm} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="weightKg">Current Weight (kg)</label>
+              <input id="weightKg" name="weightKg" type="number" min="0" step="0.1" value={form.weightKg} onChange={handleChange} />
+            </div>
+          </div>
 
-            {pickedDate && (
-                <>
-                    <button onClick={handleOpenDayLog} className="btn-primary">
-                        Open DayLog <ArrowRight size={14} />
-                    </button>
-                    <button onClick={clearFilter} className="btn-secondary" title="Show all history">
-                        <X size={14} /> Clear
-                    </button>
-                </>
-            )}
+          <hr className="form-divider" />
+
+          {/* Metabolism & Goals */}
+          <div className="section-title"><Activity size={20}/> Metabolism & Goals</div>
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label htmlFor="bmr">Base BMR (kcal)</label>
+              <input
+                id="bmr" name="bmr" type="number" min="500" step="1" placeholder="e.g. 1800"
+                value={form.bmr} onChange={handleChange}
+              />
+              <p className="muted-text">Calories burned at rest.</p>
+            </div>
+            <div className="form-group">
+              <label htmlFor="proteinTarget">Protein Target (g)</label>
+              <input id="proteinTarget" name="proteinTarget" type="number" min="0" step="1" value={form.proteinTarget} onChange={handleChange} />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label htmlFor="defaultActivityPreset">Activity Level</label>
+              <select id="defaultActivityPreset" name="defaultActivityPreset" value={form.defaultActivityPreset} onChange={handleChange}>
+                <option value="sedentary">Sedentary (1.2)</option>
+                <option value="light">Lightly Active (1.375)</option>
+                <option value="moderate">Moderately Active (1.55)</option>
+                <option value="college">Very Active (1.725)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="defaultActivityFactor">Factor Multiplier</label>
+              <input
+                id="defaultActivityFactor" name="defaultActivityFactor" type="number" min="1.0" step="0.05"
+                value={form.defaultActivityFactor} onChange={handleChange}
+                disabled={form.defaultActivityPreset !== 'custom'}
+              />
+            </div>
+          </div>
+
+          {/* Live Preview */}
+          <div className="tdee-preview-box">
+              <div>
+                  <span className="tdee-label">Your Daily Target (TDEE)</span>
+                  <span className="tdee-sub">Base BMR × Activity Factor</span>
+              </div>
+              <div className="tdee-value">
+                  {previewTDEE} kcal
+              </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <button type="submit" className="btn-save">
+              <Save size={18} /> Save Profile
+            </button>
+          </div>
+        </form>
+      </section>
+      
+      {/* 2. Data Management */}
+      <section className="settings-card">
+        <div className="section-title"><Database size={20}/> Data Management</div>
+        
+        {/* Export */}
+        <div className="action-row">
+          <div className="action-info">
+            <h3>Export Data</h3>
+            <p>Download a backup of your logs and foods.</p>
+          </div>
+          <button onClick={() => handleExport(false)} className="btn-export">
+            <Download size={18}/> Export JSON
+          </button>
         </div>
-
-        {/* Right: Rows & Exports */}
-        <div className="right">
-          <label className="rows-label">
-            Rows:
-            <select 
-                value={pageSize} 
-                onChange={(e)=>{ setPageSize(Number(e.target.value)); setPage(0); }}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+        
+        {/* Import */}
+        <div className="action-row">
+          <div className="action-info">
+            <h3>Import Data</h3>
+            <p>Restore from a backup file.</p>
+            {importError && (<p style={{color:'#e53e3e', fontWeight:600, marginTop:'0.25rem'}}>Error: {importError}</p>)}
+          </div>
+          <label className="btn-import-label">
+            <Upload size={18}/> Select File
+            <input id="import-file-input" type="file" accept=".json" onChange={handleFileChange} style={{display:'none'}} />
           </label>
-          <button className="btn-secondary" title="Download CSV" onClick={downloadCSV}>
-             <Download size={14} /> CSV
-          </button>
-          <button className="btn-secondary" title="Download JSON" onClick={downloadJSON}>
-             <Download size={14} /> JSON
-          </button>
         </div>
-      </div>
-
-      {/* 3. The Table */}
-      <div className="table-wrap">
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th>Sr.</th>
-              <th>Date</th>
-              
-              {/* ✅ Renamed TDEE -> Target to reflect Base + Workout */}
-              <th>Target</th> 
-              
-              <th>AF</th>
-              <th>IF</th>
-              <th>Workout</th>
-              <th>Lunch</th>
-              <th>Dinner</th>
-              <th>Extras</th>
-              <th>Total</th>
-              <th>Deficit</th>
-              <th>Est. Change</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((r, i) => (
-              <tr key={r.id ?? i}>
-                <td>{i + 1 + page * pageSize}</td>
-                
-                <td 
-                  onClick={() => handleRowClick(r.date)} 
-                  className="clickable-date"
-                  title="Go to Day Log"
-                >
-                  {String(r.date ?? "").slice(0, 10)}
-                </td>
-
-                {/* Target now includes Workout */}
-                <td>{fmtNum(r.tdee)}</td>
-                
-                <td>{r.activityFactor}</td>
-                <td>{r.intensityFactor}</td>
-                <td>{fmtNum(r.effectiveWorkout)}</td>
-                
-                <td>{fmtNum(r.lunch)}</td>
-                <td>{fmtNum(r.dinner)}</td>
-                <td>{fmtNum(r.extras)}</td>
-                
-                <td><strong>{fmtNum(r.total)}</strong></td>
-                
-                <td className={r.deficit >= 0 ? "text-green" : "text-red"}>
-                    <strong>{r.deficit > 0 ? "+" : ""}{fmtNum(r.deficit)}</strong>
-                </td>
-                
-                <td className={r.gainLossKg <= 0 ? "text-green" : "text-red"}>
-                  {r.gainLossKg > 0 ? "+" : ""}{r.gainLossKg.toFixed(3)} kg
-                </td>
-              </tr>
-            ))}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={12} className="empty-state">
-                  {pickedDate 
-                    ? `No entry found for ${pickedDate}. Click "Open DayLog" to create one.` 
-                    : "No history found."}
-                </td>
-              </tr>
+      </section>
+      
+      {/* Import Modal */}
+      {importData && (
+        <div className="modal-overlay" onClick={handleCancelImport}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">
+                <AlertTriangle size={24} color="#2b6cb0"/> Confirm Import
+            </div>
+            
+            {importData.version !== CURRENT_APP_VERSION && (
+              <div className="modal-warning">
+                ⚠️ Version Mismatch: File is V{importData.version}, App is V{CURRENT_APP_VERSION}.
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="pagination">
-        <div>Page {page + 1} / {pageCount}</div>
-        <div>
-          <button disabled={page <= 0} onClick={()=>setPage(p => Math.max(0, p-1))}>Prev</button>
-          <button disabled={page >= pageCount-1} onClick={()=>setPage(p => Math.min(pageCount-1, p+1))}>Next</button>
+            
+            <div className="modal-summary">
+                <ul style={{listStyle:'none', padding:0, margin:0}}>
+                    <li><strong>Exported:</strong> {importData.summary.exportedAt}</li>
+                    <li><strong>Foods:</strong> {importData.summary.foodItemsCount} items</li>
+                    <li><strong>History:</strong> {importData.summary.dayLogsCount} days logged</li>
+                </ul>
+            </div>
+            
+            <div className="modal-actions">
+                <button onClick={() => performImport(true)} className="btn-modal btn-modal-blue">
+                    Backup & Import (Recommended)
+                </button>
+                <button onClick={() => performImport(false)} className="btn-modal btn-modal-red">
+                    Overwrite (No Backup)
+                </button>
+                <button onClick={handleCancelImport} className="btn-modal btn-modal-gray">
+                    Cancel
+                </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
