@@ -1,8 +1,8 @@
 // src/components/Sidebar.jsx
 import React, { useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-// Import Lucide icons
-import { Menu, Home, FileText, BookOpen, BarChart2, Settings } from "lucide-react";
+// ✅ 1. Import 'PieChart' for the Stats icon
+import { Menu, Home, FileText, BookOpen, BarChart2, PieChart, Settings } from "lucide-react";
 import "../styles/Sidebar.css"; 
 
 export default function Sidebar({ open, setOpen, compact }) {
@@ -50,6 +50,12 @@ export default function Sidebar({ open, setOpen, compact }) {
       <button className="mini-btn" title="Trends" onClick={() => { closeSidebar(); navigate("/trends"); }}>
         <BarChart2 size={18} />
       </button>
+      
+      {/* ✅ 2. Added Stats Button (Compact) */}
+      <button className="mini-btn" title="Stats" onClick={() => { closeSidebar(); navigate("/stats"); }}>
+        <PieChart size={18} />
+      </button>
+
       <button className="mini-btn" title="Settings" onClick={() => { closeSidebar(); navigate("/settings"); }}>
         <Settings size={18} />
       </button>
@@ -58,10 +64,10 @@ export default function Sidebar({ open, setOpen, compact }) {
 
   return (
     <>
-      {/* 1. The Compact sidebar buttons remain visible always (assuming 'compact' prop handles styling) */}
+      {/* 1. The Compact sidebar buttons remain visible always */}
       <CompactButtons />
 
-      {/* 2. Overlay: visible only when 'open' is true. Clicks on the overlay call closeSidebar */}
+      {/* 2. Overlay: visible only when 'open' is true */}
       {open && (
         <div 
           className="sidebar-overlay show" 
@@ -77,8 +83,6 @@ export default function Sidebar({ open, setOpen, compact }) {
         aria-hidden={!open}
       >
         <div className="sidebar-header">
-          {/* Note: The logo here will use the simple 'Diet Tracker' text, 
-              while the main layout uses the styled <h1 className="brand"> */}
           <div className="logo" onClick={() => { navigate("/"); closeSidebar(); }} tabIndex={0}>
             Diet Tracker
           </div>
@@ -90,6 +94,10 @@ export default function Sidebar({ open, setOpen, compact }) {
           <NavLink to="/day-log" className="nav-link" onClick={closeSidebar}>Day Log</NavLink>
           <NavLink to="/foods" className="nav-link" onClick={closeSidebar}>Foods DB</NavLink>
           <NavLink to="/trends" className="nav-link" onClick={closeSidebar}>Trends</NavLink>
+          
+          {/* ✅ 3. Added Stats Link (Full Menu) */}
+          <NavLink to="/stats" className="nav-link" onClick={closeSidebar}>Stats</NavLink>
+          
           <NavLink to="/settings" className="nav-link" onClick={closeSidebar}>Settings</NavLink>
         </nav>
 

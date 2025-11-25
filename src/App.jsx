@@ -6,6 +6,7 @@ import DayLog from "./pages/DayLog";
 import Foods from "./pages/Foods";
 import Trends from "./pages/Trends";
 import Settings from "./pages/Settings";
+import Stats from "./pages/Stats"; // 1. Import Added
 
 function App() {
   return (
@@ -14,7 +15,6 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           
-          {/* FIX: Change path from /day to the relative path 'day-log' to match Layout.jsx link */}
           {/* Day Log for today */}
           <Route path="day-log" element={<DayLog />} /> 
           {/* Day Log for specific date */}
@@ -22,7 +22,12 @@ function App() {
           
           <Route path="/foods" element={<Foods />} />
           <Route path="/trends" element={<Trends />} />
+          
+          {/* 2. Route Added */}
+          <Route path="/stats" element={<Stats />} />
+
           <Route path="/settings" element={<Settings />} />
+          
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
