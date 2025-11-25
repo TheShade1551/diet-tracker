@@ -84,6 +84,8 @@ function ensureDayLog(state, date) {
 
 // --------- REDUCER ---------
 
+// --------- REDUCER ---------
+
 function appReducer(state, action) {
   switch (action.type) {
     case "SET_SELECTED_DATE": {
@@ -92,6 +94,19 @@ function appReducer(state, action) {
         selectedDate: action.payload,
       };
     }
+
+    // --- NEW: Handle importing/overwriting the entire state ---
+    case "IMPORT_STATE": {
+      // The payload is expected to be the new, full state object
+      // We perform a full overwrite as required for an import
+      return {
+        ...action.payload,
+        // Optional: Retain the current selectedDate if the imported state doesn't have it, 
+        // or always use the imported date if provided. 
+        // For simplicity and full overwrite, we just return the payload:
+      };
+    }
+    // ---------------------------------------------------------
 
     case "UPSERT_FOOD_ITEM": {
       const {
@@ -284,7 +299,6 @@ function appReducer(state, action) {
       return state;
   }
 }
-
 // --------- CONTEXT SETUP ---------
 
 const AppStateContext = createContext(null);
