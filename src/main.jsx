@@ -1,10 +1,13 @@
 // src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
+
 import App from "./App.jsx";
 import { AppStateProvider } from "./context/AppStateContext.jsx";
-import "./index.css";
-import "./styles.css";
+
+// Global styles
+import "./index.css";   // whatever you already have here
+import "./styles.css";  // our new design system (we'll rewrite it next)
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
