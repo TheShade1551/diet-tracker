@@ -1,108 +1,144 @@
 // src/components/Sidebar.jsx
-import React, { useEffect, useRef } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-// ✅ 1. Import 'PieChart' for the Stats icon
-import { Menu, Home, FileText, BookOpen, BarChart2, PieChart, Settings } from "lucide-react";
-import "../styles/Sidebar.css"; 
+import React, { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Menu,
+  Home,
+  FileText,
+  BookOpen,
+  BarChart2,
+  PieChart,
+  Settings,
+} from "lucide-react";
 
-export default function Sidebar({ open, setOpen, compact }) {
+import "../styles/Sidebar.css";
+
+export default function Sidebar({ open, setOpen }) {
   const navigate = useNavigate();
-  const panelRef = useRef(null);
-  
-  // Helper function to close the sidebar
-  const closeSidebar = () => setOpen(false);
+  const location = useLocation();
 
-  // Close on ESC key (UX improvement)
+  const closeSidebar = () => setOpen(false);
+  const toggleSidebar = () => setOpen((prev) => !prev);
+
+  // Close on Escape key
   useEffect(() => {
     function onKey(e) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        closeSidebar();
+      }
     }
-    // Only listen if the sidebar is open
     if (open) {
       document.addEventListener("keydown", onKey);
     }
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, setOpen]);
+  }, [open]);
 
-
-  // Compact buttons (always visible) — clicking navigates and closes the main panel if open
-  const CompactButtons = () => (
-    <div className="sidebar-compact">
-      {/* 1. Hamburger button: Uses Lucide Menu icon */}
-      <button 
-        className="hamburger-btn" 
-        aria-label="Toggle menu" 
-        onClick={() => setOpen(prev => !prev)} // Toggles the state
-      >
-        <Menu size={18} />
-      </button>
-
-      {/* 2. Navigation buttons: Use Lucide icons */}
-      <button className="mini-btn" title="Dashboard" onClick={() => { closeSidebar(); navigate("/"); }}>
-        <Home size={18} />
-      </button>
-      <button className="mini-btn" title="Day Log" onClick={() => { closeSidebar(); navigate("/day-log"); }}>
-        <FileText size={18} />
-      </button>
-      <button className="mini-btn" title="Foods" onClick={() => { closeSidebar(); navigate("/foods"); }}>
-        <BookOpen size={18} />
-      </button>
-      <button className="mini-btn" title="Trends" onClick={() => { closeSidebar(); navigate("/trends"); }}>
-        <BarChart2 size={18} />
-      </button>
-      
-      {/* ✅ 2. Added Stats Button (Compact) */}
-      <button className="mini-btn" title="Stats" onClick={() => { closeSidebar(); navigate("/stats"); }}>
-        <PieChart size={18} />
-      </button>
-
-      <button className="mini-btn" title="Settings" onClick={() => { closeSidebar(); navigate("/settings"); }}>
-        <Settings size={18} />
-      </button>
-    </div>
-  );
+  const navItems = [
+    { to: "/", label: "Dashboard", icon: Home, index: 1 },
+    { to: "/day-log", label: "Day Log", icon: FileText, index: 2 },
+    { to: "/foods", label: "Foods DB", icon: BookOpen, index: 3 },
+    { to: "/trends", label: "Trends", icon: BarChart2, index: 4 },
+    { to: "/stats", label: "Stats", icon: PieChart, index: 5 },
+    { to: "/settings", label: "Settings", icon: Settings, index: 6 },
+  ];
 
   return (
     <>
-      {/* 1. The Compact sidebar buttons remain visible always */}
-      <CompactButtons />
+      {/* --- DESKTOP: Compact Rail (Pills) --- */}
+      <div className={`sidebar-compact ${open ? "sidebar-open" : ""}`}>
+        
+        {/* Hamburger - Now identical size/shape to buttons */}
+        <button
+          type="button"
+          className="hamburger-btn"
+          onClick={toggleSidebar}
+          aria-label="Toggle sidebar menu"
+        >
+          <Menu size={20} />
+        </button>
 
-      {/* 2. Overlay: visible only when 'open' is true */}
-      {open && (
-        <div 
-          className="sidebar-overlay show" 
-          onMouseDown={closeSidebar} 
-          role="presentation"
-        />
-      )}
+        {/* Navigation Pills */}
+        <div className="sidebar-links">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.to;
+            return (
+              <button
+                key={item.to}
+                type="button"
+                className={`mini-btn mini-btn-${item.index} ${isActive ? "mini-btn-active" : ""}`}
+                onClick={() => {
+                  navigate(item.to);
+                  // Close sidebar if on mobile/tablet size
+                  if (window.innerWidth < 900) closeSidebar();
+                }}
+                aria-label={item.label}
+              >
+                <span className="mini-btn-icon-wrapper">
+                  <Icon size={20} />
+                </span>
+                <span className="mini-btn-label-wrapper">
+                  <span className="mini-btn-label">{item.label}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* 3. Full Sidebar Panel */}
-      <aside 
-        ref={panelRef}
+      {/* --- Overlay (Dimming Effect) --- */}
+      {open && <div className="sidebar-overlay" onClick={closeSidebar} />}
+
+      {/* --- MOBILE: Slide-out Panel --- */}
+      <aside
         className={`sidebar-panel ${open ? "open" : ""}`}
         aria-hidden={!open}
       >
+        {/* Header with Logo */}
         <div className="sidebar-header">
-          <div className="logo" onClick={() => { navigate("/"); closeSidebar(); }} tabIndex={0}>
-            Diet Tracker
+          <div className="sidebar-logo-container">
+            <span className="sidebar-logo-text">
+              <span className="sidebar-logo-accent">Diet</span>Tracker
+            </span>
           </div>
+          
+          <button
+            type="button"
+            className="panel-close-btn"
+            onClick={closeSidebar}
+            aria-label="Close sidebar"
+          >
+            <Menu size={18} />
+          </button>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Main navigation">
-          {/* Ensure NavLink clicks also close the sidebar */}
-          <NavLink to="/" className="nav-link" onClick={closeSidebar}>Dashboard</NavLink>
-          <NavLink to="/day-log" className="nav-link" onClick={closeSidebar}>Day Log</NavLink>
-          <NavLink to="/foods" className="nav-link" onClick={closeSidebar}>Foods DB</NavLink>
-          <NavLink to="/trends" className="nav-link" onClick={closeSidebar}>Trends</NavLink>
-          
-          {/* ✅ 3. Added Stats Link (Full Menu) */}
-          <NavLink to="/stats" className="nav-link" onClick={closeSidebar}>Stats</NavLink>
-          
-          <NavLink to="/settings" className="nav-link" onClick={closeSidebar}>Settings</NavLink>
+        {/* Mobile Navigation Links */}
+        <nav className="panel-nav">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.to;
+            return (
+              <div
+                key={item.to}
+                className={`panel-link ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  navigate(item.to);
+                  closeSidebar();
+                }}
+                role="button"
+                tabIndex={0}
+              >
+                <Icon size={20} className="panel-icon" />
+                <span>{item.label}</span>
+              </div>
+            );
+          })}
         </nav>
 
+        {/* Footer */}
         <div className="sidebar-footer">
-          <small>v1 • local</small>
+          <span className="sidebar-footer-label">Local User</span>
+          <span className="sidebar-footer-version">v1.0</span>
         </div>
       </aside>
     </>

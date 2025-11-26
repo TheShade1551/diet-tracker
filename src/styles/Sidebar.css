@@ -1,176 +1,338 @@
-/* src/components/Sidebar.css */
+/* src/styles/Sidebar.css */
 
-/* --- COLOR PALETTE DEFINITIONS --- */
-/* Palette: #ecf4e8, #cbf3bb, #abe7b2, #93bfc7 (Light to Dark/Accent) */
+/* --- 1. PALETTE (Pastel/Clean) --- */
 :root {
-  /* Main Backgrounds and Surfaces */
-  --bg-primary: #f8fcf7;   /* Explicitly very light/almost white (Used for Body/DOM) */
-  --card-bg: #FFFFFF;      /* Pure white for sidebar panel and other cards */
+  /* Dashboard: White/Light Gray */
+  --c1-main: #2c3e50; 
+  --c1-soft: #ffffff; 
 
-  /* Text and Icons */
-  --text-dark: #333333;    /* Dark text for readability */
-  --text-primary: #1e3f57; /* A dark blue/green that contrasts well */
+  /* Day Log: Minty Cyan */
+  --c2-main: #009688; 
+  --c2-soft: #e0f2f1; 
+
+  /* Foods DB: Lavender */
+  --c3-main: #8e24aa; 
+  --c3-soft: #f3e5f5; 
+
+  /* Trends: Pastel Orange */
+  --c4-main: #ef6c00; 
+  --c4-soft: #fff3e0;
+
+  /* Stats: Pastel Pink/Red */
+  --c5-main: #e91e63; 
+  --c5-soft: #fce4ec;
+
+  /* Settings: Slate/Gray */
+  --c6-main: #455a64; 
+  --c6-soft: #eceff1; 
   
-  /* Accents and Interactives */
-  --accent-base: #abe7b2;  /* Mid-green for active link/strong hover */
-  --accent-light: #cbf3bb; /* Lighter green for button base/soft hover */
-  --accent-focus: #93bfc7; /* Cyan/blue for focus states */
-
-  /* Fallback/Standard Variables used in the component */
-  --text: var(--text-primary); 
+  --text-dark: #374151;
+  --text-muted: #94a3b8;
+  
+  /* Shadows */
+  --shadow-subtle: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* --- COMPACT BUTTONS --- */
+/* --- 2. BASE CONTAINER (Common) --- */
 .sidebar-compact {
   position: fixed;
-  left: 12px;
-  top: 80px; 
+  z-index: 60;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 1001;
+  pointer-events: none; /* Container passes clicks through */
+}
+/* Re-enable clicks for buttons */
+.sidebar-compact > * {
+  pointer-events: auto; 
 }
 
-.mini-btn svg,
-.hamburger-btn svg {
-  vertical-align: middle;
+/* Container for nav links */
+.sidebar-links {
+  display: flex;
+  gap: 12px;
 }
 
+/* --- HAMBURGER (Common Base) --- */
 .hamburger-btn {
-  background: transparent;
+  background: white;
   border: none;
-  font-size: 20px;
-  padding: 8px;
   cursor: pointer;
-  color: var(--text-dark); /* Dark icon on light background */
-}
-
-.mini-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent-light); 
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-dark);
+  box-shadow: var(--shadow-subtle);
+  transition: all 0.2s ease;
+}
+.hamburger-btn:hover {
+  background: #f8fafc;
+  transform: scale(1.05);
+  box-shadow: var(--shadow-hover);
+}
+
+/* --- MINI BUTTONS (Common Base) --- */
+.mini-btn {
+  border-radius: 99px; /* Pill/Circle */
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background: var(--btn-soft);
+  color: var(--btn-main);
+  box-shadow: var(--shadow-subtle);
   cursor: pointer;
-  color: var(--text-dark); 
-  transition: background-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Subtle shadow for lift */
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              background 0.2s ease, 
+              box-shadow 0.2s ease,
+              transform 0.1s ease;
 }
 
-.mini-btn:hover {
-  background: var(--accent-base); 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); 
+/* Active State */
+.mini-btn-active {
+  background: var(--btn-main) !important;
+  color: white !important;
+  box-shadow: var(--shadow-hover);
 }
 
-.mini-btn:active {
-  background: var(--accent-focus); 
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+.mini-btn-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
-/* --- OVERLAY --- */
+.mini-btn-label-wrapper {
+  opacity: 0;
+  white-space: nowrap;
+  transform: translateX(-10px);
+  transition: opacity 0.2s ease 0.1s, transform 0.2s ease 0.1s;
+}
+.mini-btn-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding-right: 20px;
+}
+
+/* --- COLOR MAP --- */
+.mini-btn-1 { --btn-soft: var(--c1-soft); --btn-main: var(--c1-main); }
+.mini-btn-2 { --btn-soft: var(--c2-soft); --btn-main: var(--c2-main); }
+.mini-btn-3 { --btn-soft: var(--c3-soft); --btn-main: var(--c3-main); }
+.mini-btn-4 { --btn-soft: var(--c4-soft); --btn-main: var(--c4-main); }
+.mini-btn-5 { --btn-soft: var(--c5-soft); --btn-main: var(--c5-main); }
+.mini-btn-6 { --btn-soft: var(--c6-soft); --btn-main: var(--c6-main); }
+
+
+/* ========================================= */
+/* DESKTOP LAYOUT (>= 900px)           */
+/* ========================================= */
+@media (min-width: 900px) {
+  
+  /* Vertical Rail on Left */
+  .sidebar-compact {
+    left: 20px;
+    top: 96px; 
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0; /* Gap handled by margin-bottom on hamburger */
+  }
+
+  /* Vertical Link Stack */
+  .sidebar-links {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Sizing */
+  .hamburger-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 25px;
+    margin-bottom: 12px; /* Spacing */
+  }
+  
+  .mini-btn {
+    width: 50px;
+    height: 50px;
+  }
+  .mini-btn-icon-wrapper { min-width: 50px; }
+
+  /* --- Desktop Interaction Logic --- */
+  
+  /* 1. Hover Expand (When Sidebar Closed) */
+  .sidebar-compact:not(.sidebar-open) .mini-btn:hover {
+    width: 180px; 
+    z-index: 70;
+    box-shadow: var(--shadow-hover);
+  }
+  .sidebar-compact:not(.sidebar-open) .mini-btn:hover .mini-btn-label-wrapper {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* 2. Full Expand (When Sidebar Open) */
+  .sidebar-compact.sidebar-open .mini-btn {
+    width: 200px;
+  }
+  .sidebar-compact.sidebar-open .mini-btn .mini-btn-label-wrapper {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  
+  /* Hide slide-out panel on desktop usually */
+  .sidebar-panel { display: none; }
+}
+
+
+/* ========================================= */
+/* MOBILE LAYOUT (< 900px)             */
+/* ========================================= */
+@media (max-width: 899px) {
+
+  /* Floating Bottom Dock */
+  .sidebar-compact {
+    top: auto;        /* Unset top */
+    bottom: 24px;     /* Stick to bottom */
+    left: 50%;        /* Center horizontally */
+    transform: translateX(-50%);
+    
+    flex-direction: row; /* Horizontal */
+    align-items: center;
+    gap: 12px;
+    
+    /* Background Capsule for clarity */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    
+    /* Ensure it fits on small screens */
+    width: auto;
+    max-width: 95%;
+    overflow-x: auto; /* Allow scroll on very tiny screens */
+  }
+
+  /* Horizontal Links */
+  .sidebar-links {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  /* Button Sizing for Mobile (Slightly smaller) */
+  .hamburger-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    margin: 0; /* No margin on mobile */
+  }
+  
+  .mini-btn {
+    width: 44px;
+    height: 44px;
+    justify-content: center; /* Center icon */
+  }
+  .mini-btn-icon-wrapper { min-width: 44px; }
+  
+  /* Disable label expansion on mobile - pure icons */
+  .mini-btn-label-wrapper { display: none; }
+}
+
+
+/* ========================================= */
+/* SHARED & OVERLAYS                   */
+/* ========================================= */
+
+/* Overlay (Common) */
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.25); 
-  z-index: 40; 
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  animation: fadeIn 0.2s ease-out;
 }
 
-/* --- SIDEBAR PANEL (Now White) --- */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+
+/* --- SIDEBAR PANEL (Slide-Out) --- */
 .sidebar-panel {
-  position: fixed; 
-  left: 0; 
+  position: fixed;
   top: 0;
+  left: 0;
   bottom: 0;
-  
-  width: 280px; 
-  max-width: calc(100% - 40px); 
-
-  height: 100%;
-  background: var(--card-bg); /* PURE WHITE */
-  
-  box-shadow: 3px 0 15px rgba(0, 0, 0, 0.2); /* Stronger shadow to clearly separate from light DOM */
-  
-  transform: translateX(-100%); 
-  transition: transform .22s ease; 
-  z-index: 50; 
-  padding: 16px;
+  width: 280px;
+  background: white;
+  box-shadow: 25px 0 50px rgba(0,0,0,0.1);
+  padding: 24px;
+  z-index: 100;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 }
+.sidebar-panel.open { transform: translateX(0); }
 
-/* When opened */
-.sidebar-panel.open {
-  transform: translateX(0);
-}
-
-/* --- SIDEBAR CONTENTS --- */
-
+/* Header */
 .sidebar-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+.sidebar-logo-container { font-family: sans-serif; }
+.sidebar-logo-text {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--c1-main);
+  letter-spacing: -0.5px;
+}
+.sidebar-logo-accent { color: var(--c2-main); }
+
+.panel-close-btn {
+  background: #f1f5f9;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
 }
 
-.logo, .mini-logo {
-  font-weight:700;
-  font-size:18px;
-  cursor:pointer;
-  color: var(--text-primary); 
-}
+/* Nav Links */
+.panel-nav { display: flex; flex-direction: column; gap: 8px; }
 
-.sidebar-nav {
-  display:flex;
-  flex-direction:column;
-  gap:8px;
+.panel-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.nav-link {
-  padding:10px 12px;
-  border-radius:8px;
-  text-decoration:none;
-  color:var(--text-primary); 
-  transition: background-color 0.2s, color 0.2s; 
-}
-
-/* NavLink hover effect */
-.nav-link:hover {
-    background: var(--accent-light); 
-    color: var(--text-dark); 
-}
-
-.nav-link.active {
-  background: var(--accent-base); 
-  font-weight: 600; 
-  color: var(--text-dark); 
+.panel-link:hover { background: #f8fafc; color: var(--c1-main); }
+.panel-link.active {
+  background: var(--c1-soft);
+  color: var(--c1-main);
+  box-shadow: var(--shadow-subtle);
 }
 
 .sidebar-footer {
-    margin-top: 20px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08); 
-    color: var(--text-dark); 
-}
-
-/* --- MAIN CONTENT DIMMING (No change) --- */
-.main-area.dimmed {
-  filter: blur(0.2px); 
-  pointer-events: none; 
-}
-
-/* small screens: position compact at bottom-left */
-@media (max-width: 640px) {
-  .sidebar-compact {
-    left: 10px;
-    top: auto;
-    bottom: 16px;
-    flex-direction: row;
-    gap: 10px;
-  }
-  .mini-btn { 
-    width:44px; 
-    height:44px; 
-    border-radius:50%; 
-  }
-  .hamburger-btn { display:block; }
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.8rem;
 }

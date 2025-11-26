@@ -11,7 +11,7 @@ export default function Layout() {
   const navigate = useNavigate();
 
   return (
-    <div className="app-root">
+    <div className={`app-root ${sidebarOpen ? "sidebar-open" : ""}`}>
       {/* Off-canvas sidebar (handles its own compact buttons + overlay) */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
