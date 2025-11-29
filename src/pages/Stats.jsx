@@ -2,34 +2,37 @@
 import React, { useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../context/AppStateContext";
-import { X, Calendar as CalendarIcon, ArrowRight, Download } from "lucide-react"; 
+import {
+  X,
+  Calendar as CalendarIcon,
+  ArrowRight,
+  Download,
+} from "lucide-react";
 
-// Import separate CSS
 import "../styles/Stats.css";
 
-// Import extracted logic
-import { 
-  dateToKey, 
-  fmtNum, 
-  computeDayMealTotals, 
-  computeTDEEForDay, 
+import {
+  dateToKey,
+  fmtNum,
+  computeDayMealTotals,
+  computeTDEEForDay,
   calculateEffectiveWorkout,
-  safeGet 
+  safeGet,
 } from "../utils/calculations";
 
 export default function Stats() {
   const { state } = useAppState();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+
   const profile = state?.profile ?? {};
-  
   const dateInputRef = useRef(null);
 
-  // --- State ---
+  // --- Local UI state ---
   const [pickedDate, setPickedDate] = useState("");
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(7); // columns at a time
   const [page, setPage] = useState(0);
 
-  // --- Data Processing ---
+  // --- Source data (backwards compatible with older keys) ---
   const rawDays =
     state?.days ??
     state?.dayLogs ??
@@ -38,133 +41,152 @@ export default function Stats() {
     state?.logs ??
     [];
 
+  // --- Build per-day stats rows (used as columns in matrix) ---
   const rows = useMemo(() => {
-    const arr = Array.isArray(rawDays) ? [...rawDays] : Object.values(rawDays || {});
-    
+    const arr = Array.isArray(rawDays)
+      ? [...rawDays]
+      : Object.values(rawDays || {});
+
     const mapped = arr.map((d, idx) => {
-      const rawDate = d.date ?? d.day ?? d.dateString ?? d.isoDate ?? d.loggedAt ?? d.key ?? "";
+      const rawDate =
+        d.date ??
+        d.day ??
+        d.dateString ??
+        d.isoDate ??
+        d.loggedAt ??
+        d.key ??
+        "";
+
       const dateKey = dateToKey(rawDate);
 
-      // 1. Calculations
       const { lunch, dinner, extras, total } = computeDayMealTotals(d);
-      
-      // A. Base TDEE (BMR * Activity)
+
       const baseTdee = computeTDEEForDay(d, profile);
-      
-      // B. Effective Workout (Raw * Intensity)
       const effectiveWorkout = calculateEffectiveWorkout(d);
-      
-      // C. ✅ TOTAL TARGET = Base + Workout
-      // This is what we want to show in the "Target/TDEE" column
       const dailyTarget = baseTdee + effectiveWorkout;
 
-      const activityFactor = safeGet(d, "activityFactor") ?? profile?.defaultActivityFactor ?? "-";
-      
-      // Logic: Show Intensity only if workout exists and is non-zero
+      const activityFactor =
+        safeGet(d, "activityFactor") ??
+        profile?.defaultActivityFactor ??
+        "-";
+
       const workoutKcal = d.workoutCalories ?? d.workoutKcal ?? 0;
-      const intensityFactorDisplay = (workoutKcal > 0 && d.intensityFactor) 
-        ? Number(d.intensityFactor).toFixed(2) 
-        : "-";
+      const intensityFactorDisplay =
+        workoutKcal > 0 && d.intensityFactor
+          ? Number(d.intensityFactor).toFixed(2)
+          : "-";
 
-      // Net Deficit = Target - Intake
       const deficit = dailyTarget - total;
-      
-      // Weight Change (Kg) -> Deficit / 7700 
-      // Positive Deficit (Burned more) -> Weight Loss (Negative KG)
-      const gainLossKg = -(deficit / 7700); 
+      const gainLossKg = -(deficit / 7700);
 
-      // Strings for CSV export
       const getMealText = (type) => {
-          if (!d.meals) return "";
-          return d.meals
-            .filter(m => (m.mealType || "").toLowerCase() === type)
-            .map(m => `${m.foodNameSnapshot} (${m.totalKcal})`)
-            .join(", ");
-      }
+        if (!d.meals) return "";
+        return d.meals
+          .filter((m) => (m.mealType || "").toLowerCase() === type)
+          .map((m) => `${m.foodNameSnapshot} (${m.totalKcal})`)
+          .join(", ");
+      };
 
       return {
         id: d.id ?? d.key ?? idx,
         date: dateKey,
-        tdee: dailyTarget, // ✅ Now stores the FULL daily target
-        baseTdee,          // Store base separately if needed
+        // nutrition
+        tdee: dailyTarget,
+        total,
+        deficit,
+        gainLossKg,
+        // activity
         activityFactor,
         intensityFactor: intensityFactorDisplay,
-        workoutKcal,      
-        effectiveWorkout, 
+        workoutKcal,
+        effectiveWorkout,
+        // meals
         lunch,
         dinner,
         extras,
-        total,
-        deficit, 
-        gainLossKg,
-        
-        // CSV Helpers
+        // CSV helper text
         lunchText: d.meals ? getMealText("lunch") : "",
         dinnerText: d.meals ? getMealText("dinner") : "",
-        extrasText: d.meals ? (getMealText("extra") || getMealText("extras")) : "",
+        extrasText: d.meals
+          ? getMealText("extra") || getMealText("extras")
+          : "",
       };
     });
 
-    // Sort descending by date
     mapped.sort((a, b) => {
       if (a.date && b.date) {
         const ad = new Date(a.date).getTime();
         const bd = new Date(b.date).getTime();
-        if (!isNaN(ad) && !isNaN(bd)) return bd - ad;
+        if (!Number.isNaN(ad) && !Number.isNaN(bd)) return bd - ad;
       }
       return 0;
     });
 
-    // Filter by single date if picked
     if (pickedDate) {
-      return mapped.filter(r => r.date === pickedDate);
+      return mapped.filter((r) => r.date === pickedDate);
     }
     return mapped;
-  }, [rawDays, state, profile, pickedDate]);
+  }, [rawDays, profile, pickedDate]);
 
-  // --- Pagination ---
+  // --- Pagination (per columns) ---
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const visible = rows.slice(page * pageSize, (page + 1) * pageSize);
 
-  // --- Actions ---
+  const hasData = visible.length > 0;
+
+  // --- Navigation / actions ---
+
   const handleOpenDayLog = () => {
     if (pickedDate) navigate(`/day-log?date=${pickedDate}`);
   };
 
-  const handleRowClick = (date) => {
-    if(date) navigate(`/day-log?date=${date}`);
-  };
-
   const clearFilter = () => {
-    setPickedDate(""); 
+    setPickedDate("");
     setPage(0);
   };
 
   const handleDateWrapperClick = () => {
-    if (dateInputRef.current && dateInputRef.current.showPicker) {
-        dateInputRef.current.showPicker();
+    if (dateInputRef.current?.showPicker) {
+      dateInputRef.current.showPicker();
     } else if (dateInputRef.current) {
-        dateInputRef.current.focus();
+      dateInputRef.current.focus();
     }
   };
 
-  // --- Export Helpers ---
+  const handleColumnClick = (date) => {
+    if (date) navigate(`/day-log?date=${date}`);
+  };
+
+  // --- Export helpers (still classic “rows” CSV/JSON) ---
+
   function downloadCSV() {
+    if (!rows.length) return;
+
     const headers = [
-      "Sr", "Date", "Daily_Target", "AF", "IF", "Workout_Raw", "Workout_Effective",
-      "Lunch_Kcal", "Dinner_Kcal", "Extras_Kcal", "Total_Kcal", 
-      "Deficit", "Est_Weight_Change_Kg",
-      "Lunch_Items", "Dinner_Items", "Extras_Items"
+      "Date",
+      "Target",
+      "AF",
+      "IF",
+      "Workout",
+      "Lunch_kcal",
+      "Dinner_kcal",
+      "Extras_kcal",
+      "Total_kcal",
+      "Deficit",
+      "EstWeightChangeKg",
+      "Lunch_Items",
+      "Dinner_Items",
+      "Extras_Items",
     ];
+
     const csvRows = [headers.join(",")];
-    visible.forEach((r, i) => {
+
+    rows.forEach((r) => {
       const row = [
-        i + 1 + page * pageSize,
         `"${String(r.date || "")}"`,
-        r.tdee, // Includes workout
+        r.tdee,
         r.activityFactor,
         r.intensityFactor,
-        r.workoutKcal,
         r.effectiveWorkout,
         r.lunch,
         r.dinner,
@@ -174,11 +196,14 @@ export default function Stats() {
         r.gainLossKg.toFixed(4),
         `"${(r.lunchText || "").replace(/"/g, '""')}"`,
         `"${(r.dinnerText || "").replace(/"/g, '""')}"`,
-        `"${(r.extrasText || "").replace(/"/g, '""')}"`
+        `"${(r.extrasText || "").replace(/"/g, '""')}"`,
       ];
       csvRows.push(row.join(","));
     });
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+
+    const blob = new Blob([csvRows.join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -188,7 +213,9 @@ export default function Stats() {
   }
 
   function downloadJSON() {
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(rows, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -197,159 +224,422 @@ export default function Stats() {
     URL.revokeObjectURL(url);
   }
 
-  // --- Summaries ---
+  // --- Summary metrics for current filter (all rows, not just page) ---
+
   const allTime = useMemo(() => {
     const totalDays = rows.length;
-    const totalDeficit = rows.reduce((s, r) => s + (r.deficit || 0), 0);
-    const totalGainKg = rows.reduce((s, r) => s + (r.gainLossKg || 0), 0);
-    const totalCaloriesConsumed = rows.reduce((s, r) => s + (r.total || 0), 0);
-    return { totalDays, totalDeficit, totalGainKg, totalCaloriesConsumed };
+    const totalDeficit = rows.reduce(
+      (s, r) => s + (r.deficit || 0),
+      0
+    );
+    const totalGainKg = rows.reduce(
+      (s, r) => s + (r.gainLossKg || 0),
+      0
+    );
+    const totalCaloriesConsumed = rows.reduce(
+      (s, r) => s + (r.total || 0),
+      0
+    );
+    return {
+      totalDays,
+      totalDeficit,
+      totalGainKg,
+      totalCaloriesConsumed,
+    };
   }, [rows]);
 
+  const estKgChange = allTime.totalGainKg;
+  const estKgClass =
+    estKgChange < 0 ? "stats-chip-loss" : estKgChange > 0 ? "stats-chip-gain" : "";
+
+  // --- Matrix row metadata (left panel + right rows share this) ---
+
+  const matrixRows = [
+    { type: "header", key: "header" },
+
+    { type: "group", key: "g-nutrition", label: "Nutrition" },
+    { type: "metric", key: "target", label: "Target", field: "tdee", unit: "kcal" },
+    { type: "metric", key: "total", label: "Total", field: "total", unit: "kcal" },
+    {
+      type: "metric",
+      key: "deficit",
+      label: "Deficit",
+      field: "deficit",
+      unit: "kcal",
+      color: (v) => (v >= 0 ? "text-green" : "text-red"),
+      prefix: (v) => (v > 0 ? "+" : ""),
+    },
+    {
+      type: "metric",
+      key: "est",
+      label: "Est.",
+      field: "gainLossKg",
+      unit: "kg",
+      decimals: 3,
+      color: (v) =>
+        v < 0 ? "stats-chip-loss" : v > 0 ? "stats-chip-gain" : "",
+      prefix: (v) => (v > 0 ? "+" : ""),
+    },
+
+    { type: "group", key: "g-activity", label: "Activity" },
+    { type: "metric", key: "af", label: "AF", field: "activityFactor" },
+    { type: "metric", key: "if", label: "IF", field: "intensityFactor" },
+    {
+      type: "metric",
+      key: "workout",
+      label: "Workout",
+      field: "effectiveWorkout",
+      unit: "kcal",
+    },
+
+    { type: "group", key: "g-meals", label: "Meals" },
+    {
+      type: "metric",
+      key: "lunch",
+      label: "Lunch",
+      field: "lunch",
+      unit: "kcal",
+      titleField: "lunchText",
+    },
+    {
+      type: "metric",
+      key: "dinner",
+      label: "Dinner",
+      field: "dinner",
+      unit: "kcal",
+      titleField: "dinnerText",
+    },
+    {
+      type: "metric",
+      key: "extras",
+      label: "Extras",
+      field: "extras",
+      unit: "kcal",
+      titleField: "extrasText",
+    },
+  ];
+
+  const formatCell = (rowMeta, day) => {
+    if (!day) return "";
+    const { field, unit, decimals, prefix, color, titleField } = rowMeta;
+    if (!field) return "";
+
+    let raw = day[field];
+    if (raw === null || raw === undefined || raw === "") return "-";
+
+    let num = Number(raw);
+    if (!Number.isFinite(num)) return raw;
+
+    const absPrefix = prefix ? prefix(num) : "";
+    const valueText =
+      decimals != null ? num.toFixed(decimals) : fmtNum(num);
+    const unitText = unit ? ` ${unit}` : "";
+
+    return {
+      text: `${absPrefix}${valueText}${unitText}`,
+      className: color ? color(num) : "",
+      title: titleField ? day[titleField] || "" : "",
+    };
+  };
+
+  // --- Render ---
+
   return (
-    <div className="stats-page container-card">
-      
-      {/* 1. Summary Header */}
+    <div className="page stats-page">
+      {/* Header */}
       <header className="stats-header">
-        <h2>{pickedDate ? "Single Day Summary" : "All-time Summary"}</h2>
-        <div className="summary-row">
-          <div>Entries: <strong>{allTime.totalDays}</strong></div>
-          <div>Net Deficit: <strong>{allTime.totalDeficit}</strong></div>
-          <div>Est. Change: <strong style={{color: allTime.totalGainKg <= 0 ? '#38a169' : '#e53e3e'}}>
-            {allTime.totalGainKg > 0 ? "+" : ""}{allTime.totalGainKg.toFixed(3)} kg
-          </strong></div>
-          <div>Total Intake: <strong>{allTime.totalCaloriesConsumed}</strong></div>
+        <div>
+          <h1 className="stats-title">Daily Stats</h1>
+          <p className="stats-subtitle">
+            Inspect your daily targets, intake, activity, and meal splits across time.
+          </p>
+        </div>
+        <div className="stats-header-pill">
+          <span>History</span>
+          <span>{rows.length} days</span>
         </div>
       </header>
 
-      {/* 2. Controls Section */}
-      <div className="stats-controls">
-        {/* Left: Custom Date Picker */}
-        <div className="left">
-            <div className="custom-date-picker" onClick={handleDateWrapperClick}>
-                <CalendarIcon size={16} className="calendar-icon-overlay" />
-                <input 
-                  ref={dateInputRef}
-                  type="date" 
-                  value={pickedDate} 
-                  onChange={(e) => { setPickedDate(e.target.value); setPage(0); }}
-                  className="input-date-hidden-ui"
-                  placeholder="Jump to Date"
-                />
+      {/* Summary strip */}
+      <section className="card stats-summary-card">
+        <div className="stats-summary-grid">
+          <div className="stats-summary-item">
+            <div className="stats-summary-label">Entries</div>
+            <div className="stats-summary-value">
+              {allTime.totalDays || 0}
+            </div>
+            <div className="stats-summary-sub">Logged days</div>
+          </div>
+
+          <div className="stats-summary-item">
+            <div className="stats-summary-label">Net Deficit</div>
+            <div className="stats-summary-value">
+              {fmtNum(allTime.totalDeficit)} kcal
+            </div>
+            <div className="stats-summary-sub">
+              Target minus intake across all filtered days.
+            </div>
+          </div>
+
+          <div className="stats-summary-item">
+            <div className="stats-summary-label">Est. Weight Change</div>
+            <div className={`stats-summary-value ${estKgClass}`}>
+              {estKgChange > 0 ? "+" : ""}
+              {estKgChange.toFixed(3)} kg
+            </div>
+            <div className="stats-summary-sub">
+              Based on ~7700 kcal per kg.
+            </div>
+          </div>
+
+          <div className="stats-summary-item">
+            <div className="stats-summary-label">Total Intake</div>
+            <div className="stats-summary-value">
+              {fmtNum(allTime.totalCaloriesConsumed)} kcal
+            </div>
+            <div className="stats-summary-sub">
+              Sum of all logged daily calories.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Matrix / table card */}
+      <section className="card stats-table-card">
+        {/* Controls */}
+        <div className="stats-controls">
+          <div className="stats-controls-left">
+            <div
+              className="custom-date-picker"
+              onClick={handleDateWrapperClick}
+            >
+              <CalendarIcon
+                size={16}
+                className="calendar-icon-overlay"
+              />
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={pickedDate}
+                onChange={(e) => {
+                  setPickedDate(e.target.value);
+                  setPage(0);
+                }}
+                className="input-date-hidden-ui"
+              />
             </div>
 
             {pickedDate && (
-                <>
-                    <button onClick={handleOpenDayLog} className="btn-primary">
-                        Open DayLog <ArrowRight size={14} />
-                    </button>
-                    <button onClick={clearFilter} className="btn-secondary" title="Show all history">
-                        <X size={14} /> Clear
-                    </button>
-                </>
-            )}
-        </div>
-
-        {/* Right: Rows & Exports */}
-        <div className="right">
-          <label className="rows-label">
-            Rows:
-            <select 
-                value={pageSize} 
-                onChange={(e)=>{ setPageSize(Number(e.target.value)); setPage(0); }}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </label>
-          <button className="btn-secondary" title="Download CSV" onClick={downloadCSV}>
-             <Download size={14} /> CSV
-          </button>
-          <button className="btn-secondary" title="Download JSON" onClick={downloadJSON}>
-             <Download size={14} /> JSON
-          </button>
-        </div>
-      </div>
-
-      {/* 3. The Table */}
-      <div className="table-wrap">
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th>Sr.</th>
-              <th>Date</th>
-              
-              {/* ✅ Renamed TDEE -> Target to reflect Base + Workout */}
-              <th>Target</th> 
-              
-              <th>AF</th>
-              <th>IF</th>
-              <th>Workout</th>
-              <th>Lunch</th>
-              <th>Dinner</th>
-              <th>Extras</th>
-              <th>Total</th>
-              <th>Deficit</th>
-              <th>Est. Change</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((r, i) => (
-              <tr key={r.id ?? i}>
-                <td>{i + 1 + page * pageSize}</td>
-                
-                <td 
-                  onClick={() => handleRowClick(r.date)} 
-                  className="clickable-date"
-                  title="Go to Day Log"
+              <>
+                <button
+                  type="button"
+                  className="btn-ghost stats-small-btn"
+                  onClick={handleOpenDayLog}
                 >
-                  {String(r.date ?? "").slice(0, 10)}
-                </td>
+                  Open Day Log
+                  <ArrowRight size={14} />
+                </button>
 
-                {/* Target now includes Workout */}
-                <td>{fmtNum(r.tdee)}</td>
-                
-                <td>{r.activityFactor}</td>
-                <td>{r.intensityFactor}</td>
-                <td>{fmtNum(r.effectiveWorkout)}</td>
-                
-                <td>{fmtNum(r.lunch)}</td>
-                <td>{fmtNum(r.dinner)}</td>
-                <td>{fmtNum(r.extras)}</td>
-                
-                <td><strong>{fmtNum(r.total)}</strong></td>
-                
-                <td className={r.deficit >= 0 ? "text-green" : "text-red"}>
-                    <strong>{r.deficit > 0 ? "+" : ""}{fmtNum(r.deficit)}</strong>
-                </td>
-                
-                <td className={r.gainLossKg <= 0 ? "text-green" : "text-red"}>
-                  {r.gainLossKg > 0 ? "+" : ""}{r.gainLossKg.toFixed(3)} kg
-                </td>
-              </tr>
-            ))}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={12} className="empty-state">
-                  {pickedDate 
-                    ? `No entry found for ${pickedDate}. Click "Open DayLog" to create one.` 
-                    : "No history found."}
-                </td>
-              </tr>
+                <button
+                  type="button"
+                  className="btn-ghost stats-small-btn"
+                  onClick={clearFilter}
+                >
+                  <X size={14} />
+                  Clear
+                </button>
+              </>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
 
-      <div className="pagination">
-        <div>Page {page + 1} / {pageCount}</div>
-        <div>
-          <button disabled={page <= 0} onClick={()=>setPage(p => Math.max(0, p-1))}>Prev</button>
-          <button disabled={page >= pageCount-1} onClick={()=>setPage(p => Math.min(pageCount-1, p+1))}>Next</button>
+          <div className="stats-controls-right">
+            <div className="rows-label">
+              Columns:
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(0);
+                }}
+              >
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={7}>7</option>
+                <option value={10}>10</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              className="btn-ghost stats-export-btn"
+              onClick={downloadCSV}
+              disabled={!rows.length}
+            >
+              <Download size={14} />
+              CSV
+            </button>
+
+            <button
+              type="button"
+              className="btn-ghost stats-export-btn"
+              onClick={downloadJSON}
+              disabled={!rows.length}
+            >
+              JSON
+            </button>
+          </div>
         </div>
-      </div>
+
+        {/* MATRIX: left frozen panel + right scrollable */}
+        {!hasData ? (
+          <div className="stats-empty-matrix">
+            {pickedDate
+              ? `No entry found for ${pickedDate}. Use Day Log to create or edit that day.`
+              : "No history yet. Log a few days to see stats here."}
+          </div>
+        ) : (
+          <div className="stats-matrix">
+            {/* Left frozen column */}
+            <div className="stats-matrix-left">
+              {matrixRows.map((r) => {
+                if (r.type === "header") {
+                  return (
+                    <div
+                      key={r.key}
+                      className="stats-left-cell stats-left-header"
+                    >
+                      {/* could show an icon or label like “Metric” */}
+                      Metric
+                    </div>
+                  );
+                }
+                if (r.type === "group") {
+                  return (
+                    <div
+                      key={r.key}
+                      className="stats-left-cell stats-left-group"
+                    >
+                      {r.label}
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={r.key}
+                    className="stats-left-cell stats-left-label"
+                  >
+                    {r.label}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Right scrollable panel */}
+            <div className="stats-matrix-right">
+              <div className="stats-matrix-scroll">
+                <div className="stats-matrix-inner">
+                  {matrixRows.map((r) => {
+                    if (r.type === "header") {
+                      return (
+                        <div
+                          key={r.key}
+                          className="stats-row stats-row-header"
+                        >
+                          {visible.map((day) => (
+                            <button
+                              key={day.id}
+                              type="button"
+                              className="stats-cell stats-cell-date"
+                              onClick={() => handleColumnClick(day.date)}
+                            >
+                              {String(day.date || "").slice(5)}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    if (r.type === "group") {
+                      return (
+                        <div
+                          key={r.key}
+                          className="stats-row stats-row-group"
+                        >
+                          {visible.map((day) => (
+                            <div
+                              key={day.id}
+                              className="stats-cell stats-cell-group"
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    // metric row
+                    return (
+                      <div key={r.key} className="stats-row stats-row-metric">
+                        {visible.map((day) => {
+                          const cell = formatCell(r, day);
+                          if (!cell || !cell.text) {
+                            return (
+                              <div
+                                key={day.id}
+                                className="stats-cell stats-cell-empty"
+                              >
+                                -
+                              </div>
+                            );
+                          }
+                          return (
+                            <div
+                              key={day.id}
+                              className={`stats-cell stats-cell-value ${
+                                cell.className || ""
+                              }`}
+                              title={cell.title || ""}
+                            >
+                              {cell.text}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination footer */}
+        {rows.length > pageSize && (
+          <div className="pagination stats-pagination">
+            <div>
+              Page {page + 1} / {pageCount} • {rows.length} days
+            </div>
+            <div className="pagination-buttons">
+              <button
+                type="button"
+                className="btn-ghost stats-small-btn"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                className="btn-ghost stats-small-btn"
+                onClick={() =>
+                  setPage((p) => Math.min(pageCount - 1, p + 1))
+                }
+                disabled={page >= pageCount - 1}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
