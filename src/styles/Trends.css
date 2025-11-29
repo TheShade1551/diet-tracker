@@ -40,44 +40,6 @@
   color: var(--text-soft);
 }
 
-/* Range toggle in header */
-
-.trends-range-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.35rem;
-  border-radius: 999px;
-  background: rgba(226, 232, 240, 0.6);
-}
-
-.trends-range-label {
-  font-size: var(--text-xs);
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.trends-range-pill {
-  border: none;
-  background: transparent;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease, transform 0.08s ease;
-}
-
-.trends-range-pill:hover {
-  background: #e2e8f0;
-}
-
-.trends-range-pill-active {
-  background: #2b7fb6;
-  color: #f9fafb;
-}
-
 /* --- Cards --- */
 
 .trends-card {
@@ -98,11 +60,58 @@
   gap: 0.5rem;
 }
 
+/* Header row inside card when we have a range toggle */
+.trends-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+/* --- Range toggle used per chart --- */
+
+.chart-range-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.8);
+}
+
+.chart-range-label {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.chart-range-pill {
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.08s ease;
+}
+
+.chart-range-pill:hover {
+  background: #e2e8f0;
+}
+
+.chart-range-pill-active {
+  background: #2b7fb6;
+  color: #f9fafb;
+}
+
 /* --- Weight log form --- */
 
 .weight-log-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1.1fr) auto;
   gap: 1rem;
   align-items: end;
 }
@@ -182,13 +191,6 @@
   height: 260px;
 }
 
-/* Volume-style stacked bar chart */
-.chart-volume-container {
-  width: 100%;
-  height: 90px;
-  margin-top: 0.6rem;
-}
-
 /* Foods-style empty state */
 .empty-chart-msg {
   text-align: center;
@@ -200,7 +202,7 @@
   border: 1px dashed rgba(148, 163, 184, 0.7);
 }
 
-/* Legend for volume bars */
+/* Legend for stacked meals */
 .chart-volume-legend {
   margin-top: 0.35rem;
   display: inline-grid;
@@ -219,15 +221,47 @@
 }
 
 .legend-lunch {
-  background: #2b7fb6;
+  background: #b7ded2; /* lunch */
 }
 
 .legend-dinner {
-  background: #ea580c;
+  background: #f6a6b2; /* dinner */
 }
 
 .legend-extras {
-  background: #16a34a;
+  background: #f7c297; /* extras */
+}
+
+/* --- Custom tooltip --- */
+
+.trends-tooltip {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  box-shadow: 0 4px 10px -1px rgba(15, 23, 42, 0.18);
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.trends-tooltip-label {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.trends-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.trends-tooltip-row span:first-child {
+  color: var(--text-soft);
+}
+
+.trends-tooltip-divider {
+  height: 1px;
+  background: rgba(226, 232, 240, 0.9);
+  margin: 0.35rem 0;
 }
 
 /* --- Responsive --- */
@@ -245,9 +279,13 @@
     padding: 1.1rem 1.15rem;
   }
 
-  .trends-range-toggle {
-    width: 100%;
-    justify-content: center;
+  .trends-card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chart-range-toggle {
+    align-self: flex-start;
   }
 }
 
@@ -261,7 +299,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .btn-save-weight,
-  .trends-range-pill {
+  .chart-range-pill {
     transition: none !important;
   }
 }
