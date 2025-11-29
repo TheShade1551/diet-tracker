@@ -97,7 +97,11 @@
   border-radius: var(--card-radius);
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--border-card);
-  overflow: hidden;
+  
+  /* KEY CHANGE 1: Relax overflow on card so wrapper handles it */
+  overflow-x: visible;
+  overflow-y: hidden;
+  
   display: flex;
   flex-direction: column;
 }
@@ -197,11 +201,16 @@
 
 /* --- Unified table --- */
 .stats-table-wrapper {
-  overflow-x: auto;
   position: relative;
   width: 100%;
   display: block;
+
+  /* KEY CHANGE 2: Mobile scroll handling */
+  overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x; /* Hints browser to allow horizontal swipes */
+  
   padding-bottom: 2px;
 }
 
