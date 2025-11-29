@@ -1,5 +1,5 @@
 // src/pages/Stats.jsx
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../context/AppStateContext";
 import {
@@ -134,6 +134,28 @@ export default function Stats() {
 
   const hasData = visible.length > 0;
 
+  // --- ADDED: Height synchronization effect ---
+  useEffect(() => {
+    // This ensures the grid rows stay synchronized
+    const syncHeights = () => {
+      // The CSS grid should handle this, but this is a backup
+      requestAnimationFrame(() => {
+        // Force reflow to ensure CSS grid calculates correctly
+        const matrix = document.querySelector('.stats-matrix');
+        if (matrix) {
+          matrix.style.display = 'none';
+          matrix.offsetHeight; // Trigger reflow
+          matrix.style.display = 'grid';
+        }
+      });
+    };
+
+    syncHeights();
+    window.addEventListener('resize', syncHeights);
+    
+    return () => window.removeEventListener('resize', syncHeights);
+  }, [visible, matrixRows]); // Re-run when data changes
+
   // --- Navigation / actions ---
 
   const handleOpenDayLog = () => {
@@ -157,7 +179,7 @@ export default function Stats() {
     if (date) navigate(`/day-log?date=${date}`);
   };
 
-  // --- Export helpers (still classic “rows” CSV/JSON) ---
+  // --- Export helpers (still classic "rows" CSV/JSON) ---
 
   function downloadCSV() {
     if (!rows.length) return;
@@ -498,7 +520,8 @@ export default function Stats() {
               : "No history yet. Log a few days to see stats here."}
           </div>
         ) : (
-          <div className="stats-matrix">
+          // CHANGED: Added key prop for proper re-renders
+          <div key={`matrix-${visible.length}-${page}`} className="stats-matrix">
             {/* Left frozen column */}
             <div className="stats-matrix-left">
               {matrixRows.map((r) => {
@@ -508,7 +531,6 @@ export default function Stats() {
                       key={r.key}
                       className="stats-left-cell stats-left-header"
                     >
-                      {/* could show an icon or label like “Metric” */}
                       Metric
                     </div>
                   );
