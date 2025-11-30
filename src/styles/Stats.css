@@ -45,7 +45,7 @@
   color: var(--text-soft);
 }
 
-/* Summary */
+/* Summary cards */
 .stats-summary-card {
   padding: 1.25rem;
   background: var(--surface);
@@ -96,8 +96,6 @@
   border-radius: var(--card-radius);
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--border-card);
-  overflow-x: visible;
-  overflow-y: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -139,7 +137,7 @@
   cursor: pointer;
 }
 
-/* Buttons & export */
+/* Buttons */
 .stats-small-btn,
 .stats-export-btn {
   font-size: 0.8rem;
@@ -195,7 +193,7 @@
   outline: none;
 }
 
-/* Desktop matrix wrapper */
+/* Wrapper that scrolls (used by both tables) */
 .stats-table-wrapper {
   position: relative;
   width: 100%;
@@ -203,12 +201,17 @@
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   padding-bottom: 2px;
 }
 
-/* matrix visible by default, hidden on mobile via media query */
+/* default: desktop table visible, mobile table hidden */
 .stats-table-desktop {
   display: block;
+}
+
+.stats-table-mobile {
+  display: none;
 }
 
 /* Table */
@@ -391,103 +394,8 @@
   gap: 0.5rem;
 }
 
-/* --- Mobile day cards (hidden on desktop) --- */
-
-.stats-cards-mobile {
-  display: none; /* enabled in media query */
-  padding: 0.8rem 0.9rem 0.5rem;
-  background: #f8fafc;
-  gap: 0.75rem;
-  flex-direction: column;
-}
-
-.stats-day-card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
-  padding: 0.85rem 0.9rem 0.9rem;
-}
-
-.stats-day-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 0.55rem;
-}
-
-.stats-day-date {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.stats-day-intake {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.stats-day-intake span {
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: #64748b;
-  margin-left: 0.2rem;
-}
-
-/* Per-group inside card */
-.stats-day-group {
-  border-radius: 10px;
-  padding: 0.45rem 0.55rem 0.5rem;
-  margin-top: 0.35rem;
-  background: #f9fafb;
-}
-
-.stats-day-group-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.3rem;
-  color: inherit;
-}
-
-.stats-day-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stats-day-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-}
-
-.stats-day-row-label {
-  color: #64748b;
-}
-
-.stats-day-row-value {
-  font-variant-numeric: tabular-nums;
-  color: #0f172a;
-}
-
-/* reuse helper colors for values */
-.stats-day-row-value.text-green {
-  color: #16a34a;
-  font-weight: 600;
-}
-
-.stats-day-row-value.text-red {
-  color: #dc2626;
-  font-weight: 600;
-}
-
 /* Mobile tweaks */
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .stats-header {
     flex-direction: column;
     align-items: flex-start;
@@ -498,7 +406,10 @@
     align-items: flex-start;
   }
 
-  .stats-controls-left,
+  .stats-controls-left {
+    display: none;          /* hide "Columns per view" on mobile */
+  }
+
   .stats-controls-right {
     width: 100%;
     justify-content: space-between;
@@ -506,14 +417,6 @@
 
   .custom-date-picker {
     width: 100%;
-  }
-
-  /* Hide desktop matrix, show cards */
-  .stats-table-desktop {
-    display: none;
-  }
-  .stats-cards-mobile {
-    display: flex;
   }
 
   .stats-unified-table {
@@ -532,6 +435,18 @@
 
   .header-corner-2 {
     left: 28px;
+  }
+
+  .stats-table-desktop {
+    display: none;          /* hide desktop/paged version */
+  }
+
+  .stats-table-mobile {
+    display: block;         /* show continuous mobile table */
+  }
+
+  .stats-pagination {
+    display: none;          /* no Prev/Next on mobile */
   }
 }
 

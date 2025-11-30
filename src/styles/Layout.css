@@ -7,7 +7,8 @@
   width: 100%;
   background: var(--bg);
   color: var(--text);
-  overflow-x: hidden;
+  /* Let children (like Stats) manage their own horizontal overflow */
+  /* overflow-x: hidden;  <-- remove this line */
 }
 
 /* The main column to the right of the sidebar overlay */

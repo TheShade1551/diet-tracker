@@ -27,18 +27,6 @@ const formatHeaderDate = (iso) => {
   };
 };
 
-const formatFullDate = (iso) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
-
 export default function Stats() {
   const { state } = useAppState();
   const { profile, dayLogs } = state;
@@ -47,7 +35,7 @@ export default function Stats() {
   const [pageSize, setPageSize] = useState(7);
   const [page, setPage] = useState(0);
 
-  // ---- Build per-day stats ---------------------------------------------------
+  // ---------- Build per-day stats ----------
   const allDays = useMemo(() => {
     const entries = Object.values(dayLogs || {});
 
@@ -62,7 +50,7 @@ export default function Stats() {
         const tdee = baseTdee + effectiveWorkout;
 
         const deficit = tdee - totals.total; // +ve = under target
-        const estDeltaKg = -(deficit / 7700); // rule of thumb
+        const estDeltaKg = -(deficit / 7700); // rough rule of thumb
 
         const activityFactor =
           day.activityFactor ?? profile.defaultActivityFactor ?? 1.2;
@@ -99,12 +87,12 @@ export default function Stats() {
       })
       .filter(Boolean);
 
-    // newest first
+    // newest first – so latest date is closest to the frozen columns
     mapped.sort((a, b) => new Date(b.date) - new Date(a.date));
     return mapped;
   }, [dayLogs, profile]);
 
-  // ---- Filter + pagination ---------------------------------------------------
+  // ---------- Filter + pagination ----------
   const filteredDays = useMemo(() => {
     if (!pickedDate) return allDays;
     return allDays.filter((d) => d.date === pickedDate);
@@ -116,9 +104,12 @@ export default function Stats() {
 
   const startIdx = safePage * pageSize;
   const endIdx = startIdx + pageSize;
-  const pageDays = filteredDays.slice(startIdx, endIdx);
+  const pageDays = filteredDays.slice(startIdx, endIdx); // desktop view slice
+  const mobileDays = filteredDays; // mobile sees ALL available days
 
-  // ---- Summary metrics -------------------------------------------------------
+  const hasData = !!filteredDays.length;
+
+  // ---------- Summary metrics ----------
   const summary = useMemo(() => {
     if (!allDays.length) {
       return {
@@ -156,19 +147,14 @@ export default function Stats() {
     };
   }, [allDays]);
 
-  // ---- Config for groups/rows ------------------------------------------------
+  // ---------- Group + row config ----------
   const groups = [
     {
       id: "nutrition",
       label: "Nutrition",
       colorClass: "cat-nutrition",
       rows: [
-        {
-          key: "target",
-          label: "Target",
-          field: "tdee",
-          unit: "kcal",
-        },
+        { key: "target", label: "Target", field: "tdee", unit: "kcal" },
         {
           key: "total",
           label: "Total intake",
@@ -291,17 +277,16 @@ export default function Stats() {
     });
 
     const csv = [headers.join(","), ...rowsCsv].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = "diet-tracker-stats.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const hasData = !!pageDays.length;
 
   return (
     <div className="page stats-page">
@@ -310,8 +295,7 @@ export default function Stats() {
         <div>
           <h1 className="stats-title">Stats</h1>
           <p className="stats-subtitle">
-            Slide across days on desktop, or browse daily summary cards
-            on mobile.
+            Frozen metrics on the left, days sliding across on the right.
           </p>
         </div>
 
@@ -367,7 +351,7 @@ export default function Stats() {
         </div>
       </section>
 
-      {/* Matrix + mobile cards */}
+      {/* Matrix table card */}
       <section className="stats-table-card">
         {/* Controls */}
         <div className="stats-controls">
@@ -429,20 +413,18 @@ export default function Stats() {
 
         {!hasData ? (
           <div className="stats-empty-matrix">
-            No stats yet. Log a few days of meals and workouts to see
-            the matrix.
+            No stats yet. Log a few days of meals and workouts to see the
+            matrix.
           </div>
         ) : (
           <>
-            {/* Desktop matrix */}
+            {/* Desktop: paged slice */}
             <div className="stats-table-wrapper stats-table-desktop">
               <table className="stats-unified-table">
                 <thead>
                   <tr>
                     <th className="header-corner-1 col-category" />
-                    <th className="header-corner-2 col-metric">
-                      Metric
-                    </th>
+                    <th className="header-corner-2 col-metric">Metric</th>
                     {pageDays.map((day) => {
                       const header = formatHeaderDate(day.date);
                       return (
@@ -481,9 +463,7 @@ export default function Stats() {
                           </td>
                         )}
 
-                        <td className="col-metric">
-                          {row.label}
-                        </td>
+                        <td className="col-metric">{row.label}</td>
 
                         {pageDays.map((day) => {
                           const rawValue = day[row.field];
@@ -515,30 +495,54 @@ export default function Stats() {
               </table>
             </div>
 
-            {/* Mobile day cards */}
-            <div className="stats-cards-mobile">
-              {pageDays.map((day) => (
-                <div className="stats-day-card" key={day.date}>
-                  <div className="stats-day-card-header">
-                    <div className="stats-day-date">
-                      {formatFullDate(day.date)}
-                    </div>
-                    <div className="stats-day-intake">
-                      {fmtNum(day.total)} kcal
-                      <span> intake</span>
-                    </div>
-                  </div>
+            {/* Mobile: ALL days, continuous horizontal scroll */}
+            <div className="stats-table-wrapper stats-table-mobile">
+              <table className="stats-unified-table">
+                <thead>
+                  <tr>
+                    <th className="header-corner-1 col-category" />
+                    <th className="header-corner-2 col-metric">Metric</th>
+                    {mobileDays.map((day) => {
+                      const header = formatHeaderDate(day.date);
+                      return (
+                        <th
+                          key={day.date}
+                          className="date-header-cell"
+                        >
+                          <button
+                            type="button"
+                            className="date-header-btn"
+                          >
+                            <span className="date-weekday">
+                              {header.weekday}
+                            </span>
+                            <span className="date-full">
+                              {header.label}
+                            </span>
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((group) =>
+                    group.rows.map((row, rowIndex) => (
+                      <tr key={`${group.id}-${row.key}`}>
+                        {rowIndex === 0 && (
+                          <td
+                            className={`col-category ${group.colorClass}`}
+                            rowSpan={group.rows.length}
+                          >
+                            <span className="vertical-text">
+                              {group.label}
+                            </span>
+                          </td>
+                        )}
 
-                  {groups.map((group) => (
-                    <div
-                      key={group.id}
-                      className={`stats-day-group ${group.colorClass}`}
-                    >
-                      <div className="stats-day-group-title">
-                        {group.label}
-                      </div>
-                      <div className="stats-day-group-body">
-                        {group.rows.map((row) => {
+                        <td className="col-metric">{row.label}</td>
+
+                        {mobileDays.map((day) => {
                           const rawValue = day[row.field];
                           const value = formatCellValue(
                             row,
@@ -552,30 +556,23 @@ export default function Stats() {
                             day[row.tooltipField];
 
                           return (
-                            <div
-                              key={row.key}
-                              className="stats-day-row"
+                            <td
+                              key={`${group.id}-${row.key}-${day.date}`}
+                              className={`data-cell ${colorClass}`}
+                              title={tooltip || ""}
                             >
-                              <div className="stats-day-row-label">
-                                {row.label}
-                              </div>
-                              <div
-                                className={`stats-day-row-value ${colorClass}`}
-                                title={tooltip || ""}
-                              >
-                                {value}
-                              </div>
-                            </div>
+                              {value}
+                            </td>
                           );
                         })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {/* Pagination footer (shared) */}
+            {/* Desktop pagination (hidden on mobile via CSS) */}
             <div className="stats-pagination">
               <div className="pagination-info">
                 {totalColumns === 0 ? (
