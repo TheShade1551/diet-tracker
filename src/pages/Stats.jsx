@@ -35,6 +35,12 @@ export default function Stats() {
   const [pageSize, setPageSize] = useState(7);
   const [page, setPage] = useState(0);
 
+  /** Sorting state: which metric row is active + direction */
+  const [sortState, setSortState] = useState({
+    metricKey: null,      // matches row.key (e.g. "total", "deficit")
+    direction: null,      // "asc" | "desc" | null
+  });
+
   // ---------- Build per-day stats ----------
   const allDays = useMemo(() => {
     const entries = Object.values(dayLogs || {});
@@ -98,16 +104,50 @@ export default function Stats() {
     return allDays.filter((d) => d.date === pickedDate);
   }, [allDays, pickedDate]);
 
-  const totalColumns = filteredDays.length || 0;
+  /** Apply metric-based sorting on top of filtered days */
+  const sortedDays = useMemo(() => {
+    const { metricKey, direction } = sortState;
+    if (!metricKey || !direction) return filteredDays;
+
+    const rowCfg = allMetricRows.find((r) => r.key === metricKey);
+    if (!rowCfg) return filteredDays;
+
+    const field = rowCfg.field;
+    const sorted = [...filteredDays];
+
+    sorted.sort((a, b) => {
+      const av = a[field];
+      const bv = b[field];
+
+      const aNum = av === null || av === undefined || av === "" ? NaN : Number(av);
+      const bNum = bv === null || bv === undefined || bv === "" ? NaN : Number(bv);
+
+      let cmp;
+      if (!Number.isNaN(aNum) || !Number.isNaN(bNum)) {
+        // numeric comparison (fallback 0 for NaN)
+        cmp = (aNum || 0) - (bNum || 0);
+      } else {
+        // string comparison fallback
+        cmp = String(av ?? "").localeCompare(String(bv ?? ""));
+      }
+
+      if (direction === "desc") cmp = -cmp;
+      return cmp;
+    });
+
+    return sorted;
+  }, [filteredDays, sortState, allMetricRows]);
+
+  const totalColumns = sortedDays.length || 0;
   const totalPages = totalColumns ? Math.ceil(totalColumns / pageSize) : 1;
   const safePage = Math.min(page, Math.max(0, totalPages - 1));
 
   const startIdx = safePage * pageSize;
   const endIdx = startIdx + pageSize;
-  const pageDays = filteredDays.slice(startIdx, endIdx); // desktop view slice
-  const mobileDays = filteredDays; // mobile sees ALL available days
+  const pageDays = sortedDays.slice(startIdx, endIdx); // desktop slice
+  const mobileDays = sortedDays;                        // mobile sees all
 
-  const hasData = !!filteredDays.length;
+  const hasData = !!sortedDays.length;
 
   // ---------- Summary metrics ----------
   const summary = useMemo(() => {
@@ -237,6 +277,12 @@ export default function Stats() {
     },
   ];
 
+  // Flattened rows for easy lookup when sorting
+  const allMetricRows = useMemo(
+    () => groups.flatMap((g) => g.rows.map((r) => ({ ...r, groupId: g.id }))),
+    [groups]
+  );
+
   const formatCellValue = (rowConfig, rawValue) => {
     if (rawValue === null || rawValue === undefined || rawValue === "") {
       return "-";
@@ -257,6 +303,27 @@ export default function Stats() {
   const handleClearDate = () => {
     setPickedDate("");
     setPage(0);
+  };
+
+  const handleMetricSortToggle = (rowKey) => {
+    setPage(0); // always go back to first "page" when sorting changes
+
+    setSortState((prev) => {
+      if (prev.metricKey === rowKey) {
+        // cycle desc -> asc -> off
+        if (prev.direction === "desc") {
+          return { metricKey: rowKey, direction: "asc" };
+        }
+        if (prev.direction === "asc") {
+          return { metricKey: null, direction: null };
+        }
+        // from "off" back to desc
+        return { metricKey: rowKey, direction: "desc" };
+      }
+
+      // new metric: start with descending
+      return { metricKey: rowKey, direction: "desc" };
+    });
   };
 
   const handleExport = () => {
@@ -453,46 +520,75 @@ export default function Stats() {
                 </thead>
                 <tbody>
                   {groups.map((group) =>
-                    group.rows.map((row, rowIndex) => (
-                      <tr key={`${group.id}-${row.key}`}>
-                        {rowIndex === 0 && (
+                    group.rows.map((row, rowIndex) => {
+                      const isActive = sortState.metricKey === row.key;
+                      const activeDir = sortState.direction;
+                      return (
+                        <tr key={`${group.id}-${row.key}`}>
+                          {rowIndex === 0 && (
+                            <td
+                              className={`col-category ${group.colorClass}`}
+                              rowSpan={group.rows.length}
+                            >
+                              <span className="vertical-text">
+                                {group.label}
+                              </span>
+                            </td>
+                          )}
+
                           <td
-                            className={`col-category ${group.colorClass}`}
-                            rowSpan={group.rows.length}
+                            className={
+                              "col-metric metric-label-cell " +
+                              (group.id === "nutrition"
+                                ? "metric-sort-nutrition "
+                                : group.id === "activity"
+                                ? "metric-sort-activity "
+                                : "metric-sort-meals ") +
+                              (isActive && activeDir ? "metric-sort-active" : "")
+                            }
+                            onClick={() => handleMetricSortToggle(row.key)}
                           >
-                            <span className="vertical-text">
-                              {group.label}
+                            <span className="metric-label">
+                              <span>{row.label}</span>
+                              {isActive && activeDir && (
+                                <span
+                                  className={
+                                    "metric-sort-indicator " +
+                                    (activeDir === "asc" ? "asc" : "desc")
+                                  }
+                                >
+                                  {activeDir === "asc" ? "▲" : "▼"}
+                                </span>
+                              )}
                             </span>
                           </td>
-                        )}
 
-                        <td className="col-metric">{row.label}</td>
+                          {pageDays.map((day) => {
+                            const rawValue = day[row.field];
+                            const value = formatCellValue(
+                              row,
+                              rawValue
+                            );
+                            const colorClass = row.color
+                              ? row.color(rawValue)
+                              : "";
+                            const tooltip =
+                              row.tooltipField &&
+                              day[row.tooltipField];
 
-                        {pageDays.map((day) => {
-                          const rawValue = day[row.field];
-                          const value = formatCellValue(
-                            row,
-                            rawValue
-                          );
-                          const colorClass = row.color
-                            ? row.color(rawValue)
-                            : "";
-                          const tooltip =
-                            row.tooltipField &&
-                            day[row.tooltipField];
-
-                          return (
-                            <td
-                              key={`${group.id}-${row.key}-${day.date}`}
-                              className={`data-cell ${colorClass}`}
-                              title={tooltip || ""}
-                            >
-                              {value}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))
+                            return (
+                              <td
+                                key={`${group.id}-${row.key}-${day.date}`}
+                                className={`data-cell ${colorClass}`}
+                                title={tooltip || ""}
+                              >
+                                {value}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -530,46 +626,75 @@ export default function Stats() {
                 </thead>
                 <tbody>
                   {groups.map((group) =>
-                    group.rows.map((row, rowIndex) => (
-                      <tr key={`${group.id}-${row.key}`}>
-                        {rowIndex === 0 && (
+                    group.rows.map((row, rowIndex) => {
+                      const isActive = sortState.metricKey === row.key;
+                      const activeDir = sortState.direction;
+                      return (
+                        <tr key={`${group.id}-${row.key}`}>
+                          {rowIndex === 0 && (
+                            <td
+                              className={`col-category ${group.colorClass}`}
+                              rowSpan={group.rows.length}
+                            >
+                              <span className="vertical-text">
+                                {group.label}
+                              </span>
+                            </td>
+                          )}
+
                           <td
-                            className={`col-category ${group.colorClass}`}
-                            rowSpan={group.rows.length}
+                            className={
+                              "col-metric metric-label-cell " +
+                              (group.id === "nutrition"
+                                ? "metric-sort-nutrition "
+                                : group.id === "activity"
+                                ? "metric-sort-activity "
+                                : "metric-sort-meals ") +
+                              (isActive && activeDir ? "metric-sort-active" : "")
+                            }
+                            onClick={() => handleMetricSortToggle(row.key)}
                           >
-                            <span className="vertical-text">
-                              {group.label}
+                            <span className="metric-label">
+                              <span>{row.label}</span>
+                              {isActive && activeDir && (
+                                <span
+                                  className={
+                                    "metric-sort-indicator " +
+                                    (activeDir === "asc" ? "asc" : "desc")
+                                  }
+                                >
+                                  {activeDir === "asc" ? "▲" : "▼"}
+                                </span>
+                              )}
                             </span>
                           </td>
-                        )}
 
-                        <td className="col-metric">{row.label}</td>
+                          {mobileDays.map((day) => {
+                            const rawValue = day[row.field];
+                            const value = formatCellValue(
+                              row,
+                              rawValue
+                            );
+                            const colorClass = row.color
+                              ? row.color(rawValue)
+                              : "";
+                            const tooltip =
+                              row.tooltipField &&
+                              day[row.tooltipField];
 
-                        {mobileDays.map((day) => {
-                          const rawValue = day[row.field];
-                          const value = formatCellValue(
-                            row,
-                            rawValue
-                          );
-                          const colorClass = row.color
-                            ? row.color(rawValue)
-                            : "";
-                          const tooltip =
-                            row.tooltipField &&
-                            day[row.tooltipField];
-
-                          return (
-                            <td
-                              key={`${group.id}-${row.key}-${day.date}`}
-                              className={`data-cell ${colorClass}`}
-                              title={tooltip || ""}
-                            >
-                              {value}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))
+                            return (
+                              <td
+                                key={`${group.id}-${row.key}-${day.date}`}
+                                className={`data-cell ${colorClass}`}
+                                title={tooltip || ""}
+                              >
+                                {value}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

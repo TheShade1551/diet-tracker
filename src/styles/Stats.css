@@ -267,6 +267,18 @@
   min-width: 110px;
 }
 
+/* Metric cell base style */
+.metric-label-cell {
+  cursor: pointer;
+  user-select: none;
+  background: #ffffff;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metric-label-cell:hover {
+  background: #f8fafc;
+}
+
 /* Vertical category text */
 .vertical-text {
   writing-mode: vertical-lr;
@@ -627,4 +639,19 @@
   .stats-export-btn {
     transition: none !important;
   }
+}
+
+/* Nutrition metric highlight */
+.metric-sort-active.metric-sort-nutrition {
+  background: #eef4ff; /* soft blue */
+}
+
+/* Activity metric highlight */
+.metric-sort-active.metric-sort-activity {
+  background: #fff2e6; /* soft orange */
+}
+
+/* Meals metric highlight */
+.metric-sort-active.metric-sort-meals {
+  background: #e7f7ec; /* soft green */
 }
