@@ -598,13 +598,6 @@
   }
 }
 
-/* On very small screens, hide the summary KPI grid to keep things tight */
-@media (max-width: 480px) {
-  .stats-summary-card {
-    display: none;
-  }
-}
-
 /* --- Mobile page width clamp for Stats (and siblings) --- */
 @media (max-width: 640px) {
   /* Make sure the generic page wrapper can’t grow wider than the viewport */

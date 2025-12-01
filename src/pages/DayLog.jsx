@@ -22,7 +22,7 @@ import "../styles/DayLog.css";
 const MEAL_TYPES = [
   { id: "lunch", label: "Lunch", icon: <Utensils size={18} /> },
   { id: "dinner", label: "Dinner", icon: <Moon size={18} /> },
-  { id: "extra", label: "Extras / Snacks", icon: <Coffee size={18} /> },
+  { id: "extra", label: "Snacks", icon: <Coffee size={18} /> }, // ✅ FIXED: Changed from "Extras / Snacks"
 ];
 
 // --- Helpers ---
@@ -218,14 +218,12 @@ export default function DayLog() {
         </div>
       </div>
 
-      {/* 2. Hero Stats Cards */}
-      <div className="summary-grid">
-        {/* Calories */}
-        <div className="summary-card">
-          <div>
-            <div className="sc-header"><Activity size={16}/> Calories</div>
-            <div className="sc-value">{Math.round(totalIntakeKcal)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kcal</span></div>
-          </div>
+      {/* 2. ✅ FIXED: Consolidated Hero Stats + Inputs Card */}
+      <div className="hero-stats-card">
+        {/* Row 1: Display Stats */}
+        <div className="hero-stat">
+          <div className="sc-header"><Activity size={16}/> Calories</div>
+          <div className="sc-value">{Math.round(totalIntakeKcal)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kcal</span></div>
           <div className="sc-footer">
             Target Net: <strong className={netDayKcal >= 0 ? "text-green" : "text-orange"}>
               {netDayKcal > 0 ? "+" : ""}{Math.round(netDayKcal)}
@@ -233,33 +231,25 @@ export default function DayLog() {
           </div>
         </div>
 
-        {/* Hydration */}
-        <div className="summary-card">
-          <div>
-            <div className="sc-header"><Droplet size={16}/> Hydration</div>
-            <div className="sc-value text-blue">{dayLog.hydrationLitres?.toFixed(1)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>L</span></div>
-          </div>
+        <div className="hero-stat">
+          <div className="sc-header"><Droplet size={16}/> Hydration</div>
+          <div className="sc-value text-blue">{dayLog.hydrationLitres?.toFixed(1)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>L</span></div>
           <div className="sc-footer">
             {dayLog.hydrationLitres >= 3 ? "Great job! 💧" : "Keep drinking water."}
           </div>
         </div>
 
-        {/* Physical */}
-        <div className="summary-card">
-          <div>
-            <div className="sc-header"><Scale size={16}/> Weight</div>
-            <div className="sc-value">{dayLog.weightKg ? dayLog.weightKg : "--"} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kg</span></div>
-          </div>
+        <div className="hero-stat">
+          <div className="sc-header"><Scale size={16}/> Weight</div>
+          <div className="sc-value">{dayLog.weightKg ? dayLog.weightKg : "--"} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kg</span></div>
           <div className="sc-footer">
             Workout Burn: <strong>{effectiveWorkout} kcal</strong>
           </div>
         </div>
-      </div>
 
-      {/* 3. Meta & Inputs Section */}
-      <section className="meta-grid">
-        <div className="meta-card">
-          <label className="meta-label">Activity Factor</label>
+        {/* Row 2: Input Fields */}
+        <div className="hero-input">
+          <label className="input-label">Activity Factor</label>
           <input 
             type="number" step="0.1" min="1.0" className="input-full"
             value={dayLog.activityFactor ?? 1.2}
@@ -268,17 +258,8 @@ export default function DayLog() {
           <small className="muted">Default: {state.profile.defaultActivityFactor}</small>
         </div>
 
-        <div className="meta-card">
-          <label className="meta-label">Weight Log (kg)</label>
-          <input 
-            type="number" step="0.1" className="input-full" placeholder="0.0"
-            value={dayLog.weightKg ?? ""}
-            onChange={(e) => updateMeta({ weightKg: e.target.value ? Number(e.target.value) : null })}
-          />
-        </div>
-
-        <div className="meta-card">
-          <label className="meta-label text-blue">Water (Litres)</label>
+        <div className="hero-input">
+          <label className="input-label text-blue">Water (Litres)</label>
           <input 
             type="number" step="0.25" min="0" className="input-full"
             value={dayLog.hydrationLitres}
@@ -286,7 +267,18 @@ export default function DayLog() {
           />
         </div>
 
-        {/* Integrated Workout Box */}
+        <div className="hero-input">
+          <label className="input-label">Weight Log (kg)</label>
+          <input 
+            type="number" step="0.1" className="input-full" placeholder="0.0"
+            value={dayLog.weightKg ?? ""}
+            onChange={(e) => updateMeta({ weightKg: e.target.value ? Number(e.target.value) : null })}
+          />
+        </div>
+      </div>
+
+      {/* 3. Workout Section */}
+      <section>
         <WorkoutBox day={dayLog} dispatch={dispatch} />
       </section>
 
@@ -302,7 +294,7 @@ export default function DayLog() {
 
       {/* 5. Meal Sections – single top bar tabs */}
       <section className="meal-tabs-card">
-        {/* Top bar: tabs + active kcal badge */}
+        {/* ✅ FIXED: Responsive Top bar */}
         <div className="meal-topbar">
           <div className="meal-top-tabs">
             {MEAL_TYPES.map((meal) => {
@@ -454,7 +446,7 @@ export default function DayLog() {
                 </div>
               )}
 
-              {/* Add form (same as before) */}
+              {/* Add form */}
               <form
                 onSubmit={(e) => handleAddMeal(e, meal.id)}
                 className="add-meal-container"
