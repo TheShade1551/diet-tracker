@@ -79,7 +79,7 @@ export default function Layout() {
           </div>
 
           <div className="topbar-right">
-            <span className="topbar-version">v1.0 • Local Storage</span>
+            <span className="topbar-version">v2.0 • UI Revamp</span>
           </div>
         </header>
 
