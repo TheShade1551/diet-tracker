@@ -314,17 +314,22 @@
 
 .header-corner-2 {
   position: sticky;
-  left: 32px;
+  left: 30px; /* same as the width above */
   z-index: 40;
   background: #f8fafc;
-  box-shadow: 2px 0 4px -2px rgba(15, 23, 42, 0.1); /* 🔧 reduced shadow for tighter feel */
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.15);
   border-right: 2px solid #e2e8f0;
 }
 
-/* Ensure category strip and metric column visually touch */
+/* Ensure category strip and METRIC column are visually glued */
 .stats-unified-table .col-category,
-.stats-unified-table .header-corner-1 {
-  border-right: none !important;
+/* Lock the category column to a fixed width everywhere */
+.stats-unified-table .col-category,
+.stats-unified-table .header-corner-1.col-category {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  padding: 0;
 }
 
 /* Date headers */
@@ -456,39 +461,30 @@
   }
 
   .stats-controls {
-    flex-direction: row; /* 🔧 horizontal for date + export */
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
     padding: 0.5rem 0.75rem; /* 🔧 tighter padding */
     gap: 0.25rem; /* 🔧 minimal gap */
   }
 
+  /* Hide "Columns per view" on mobile */
   .stats-controls-left {
-    display: none;          /* hide "Columns per view" on mobile */
+    display: none;
   }
 
   .stats-controls-right {
-    width: auto; /* 🔧 natural sizing */
-    justify-content: flex-end;
-    gap: 0.25rem; /* 🔧 tight gap between date and export */
-    flex: 1;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .custom-date-picker {
-    flex: 1; /* 🔧 grow to fill */
-    max-width: calc(100% - 80px); /* 🔧 tighter room for export button */
-    padding: 0 0.5rem; /* 🔧 slimmer padding */
-    height: 28px; /* 🔧 shorter height */
+    width: 100%;
   }
 
-  .stats-export-btn {
-    padding: 0.25rem 0.5rem; /* 🔧 smaller export button */
-    font-size: 0.75rem; /* 🔧 smaller text */
-  }
-
-  /* 🔧 Make table “wider” so only ~3 date columns fit at once */
+  /* 🔧 Make the table wide enough so only 2–3 date columns fit */
   .stats-unified-table {
-    min-width: 450px;   /* 🔧 further reduced for perfect ~375px fit: sticky ~118px + 3*110px */
+    /*  first 2 sticky cols (~120px) + 3 x 140px date cols ≈ 540px  */
+    min-width: 540px;
     font-size: 0.8rem; /* 🔧 slightly smaller table font for mobile */
   }
 
@@ -499,22 +495,22 @@
   }
 
   .col-category {
-    width: 26px; /* 🔧 slimmer category */
+    width: 28px;
   }
 
   .col-metric {
-    left: 26px;
-    min-width: 85px; /* 🔧 tighter metric column */
-    font-size: 0.75rem; /* 🔧 smaller metric text */
+    left: 28px;
+    min-width: 95px;
+    font-size: 0.78rem;
   }
 
   .header-corner-2 {
-    left: 26px;
+    left: 28px;
   }
 
-  /* 🔧 make each date column wide enough */
+  /* 🔧 Each date column is fairly wide */
   .date-header-cell {
-    min-width: 110px; /* 🔧 slimmer dates for ~3 fit */
+    min-width: 140px;
   }
 
   /* Data cells in date columns – even tighter padding */
@@ -536,16 +532,18 @@
     font-size: 0.8rem; /* 🔧 smaller data text */
   }
 
+  /* Use continuous mobile table */
   .stats-table-desktop {
-    display: none;          /* hide desktop/paged version */
+    display: none;
   }
 
   .stats-table-mobile {
-    display: block;         /* show continuous mobile table */
+    display: block;
   }
 
+  /* No pagination bar on mobile */
   .stats-pagination {
-    display: none;          /* no Prev/Next on mobile */
+    display: none;
   }
 
   .stats-table-wrapper {
@@ -554,6 +552,41 @@
     padding: 0;
   }
 }
+
+/* On very small screens, hide the summary KPI grid to keep things tight */
+@media (max-width: 480px) {
+  .stats-summary-card {
+    display: none;
+  }
+}
+
+/* --- Mobile page width clamp for Stats (and siblings) --- */
+@media (max-width: 640px) {
+  /* Make sure the generic page wrapper can’t grow wider than the viewport */
+  .page {
+    max-width: 100vw;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Page container used by all pages – full-width on mobile */
+  .page-container {
+    max-width: 100vw;
+    width: 100%;
+    margin: 0;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    box-sizing: border-box;
+  }
+
+  /* Extra safety: Stats page itself never exceeds viewport width */
+  .page.stats-page {
+    max-width: 100vw;
+    width: 100%;
+    overflow-x: hidden; /* let the inner table wrapper scroll, not the page */
+  }
+}
+
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
