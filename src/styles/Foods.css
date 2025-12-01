@@ -444,3 +444,166 @@
     transition: none !important;
   }
 }
+
+/* ---------- Category manager & filter tweaks ---------- */
+
+.filter-chip-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.8rem;
+  font-size: 0.85rem;
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+.filter-chip-edit:hover {
+  background: #e2e8f0;
+}
+
+.filter-chip-null {
+  position: relative;
+}
+
+.chip-badge {
+  margin-left: 0.35rem;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #fed7d7;
+  color: #c53030;
+}
+
+/* Modal */
+
+.foods-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.foods-modal {
+  width: min(420px, 90vw);
+  max-height: 80vh;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.foods-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.category-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  background: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.category-row:nth-child(odd) {
+  background: #fdfdfd;
+}
+
+.category-row.empty {
+  justify-content: center;
+}
+
+.category-name {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.category-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.category-add-row {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.category-add-row .foods-input {
+  flex: 1;
+}
+
+.modal-footer {
+  margin-top: 0.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Small utility tweaks */
+
+.icon-btn.subtle {
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+.icon-btn.subtle:hover {
+  background: #e2e8f0;
+}
+
+.icon-btn.success {
+  background: #38a169;
+  color: #faffff;
+}
+
+.icon-btn.success:hover {
+  background: #2f855a;
+}
+
+.icon-btn.danger {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.icon-btn.danger:hover {
+  background: #feb2b2;
+}
+
+.fav-star {
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+
+.muted-dash {
+  color: #a0aec0;
+}
+
+@media (max-width: 480px) {
+  .hide-on-very-small {
+    display: none;
+  }
+
+  .foods-modal {
+    width: 92vw;
+  }
+}

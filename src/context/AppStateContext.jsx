@@ -15,6 +15,15 @@ import {
 
 export const MEAL_TYPES = ["lunch", "dinner", "extras"];
 
+// ✅ NEW: Default categories
+export const DEFAULT_FOOD_CATEGORIES = [
+  "home",
+  "street",
+  "packaged",
+  "cheat",
+  "drinks",
+];
+
 // --- ACTION TYPES ---
 export const UPDATE_DAY_WORKOUT = "UPDATE_DAY_WORKOUT";
 export const UPDATE_DAY_INTENSITY = "UPDATE_DAY_INTENSITY";
@@ -41,6 +50,7 @@ const initialState = {
   foodItems: [],
   dayLogs: {}, 
   selectedDate: todayIso(),
+  foodCategories: DEFAULT_FOOD_CATEGORIES, // ✅ NEW
 };
 
 // --------- HELPERS ---------
@@ -58,10 +68,18 @@ function loadFromStorage() {
     return {
       ...initialState,
       ...parsed,
-      profile: { ...initialState.profile, ...(parsed.profile || {}) },
+      profile: {
+        ...initialState.profile,
+        ...(parsed.profile || {}),
+      },
       dayLogs: parsed.dayLogs || {},
       foodItems: parsed.foodItems || [],
       selectedDate: parsed.selectedDate || todayIso(),
+      // ✅ NEW: Hydrate categories or fallback to default
+      foodCategories:
+        parsed.foodCategories && parsed.foodCategories.length
+          ? parsed.foodCategories
+          : DEFAULT_FOOD_CATEGORIES,
     };
   } catch {
     return initialState;
@@ -163,6 +181,77 @@ function appReducer(state, action) {
       return {
         ...state,
         foodItems: [...state.foodItems, { id, name, category, unitLabel, kcalPerUnit, isFavourite }],
+      };
+    }
+
+    // ✅ NEW: Delete Food Item
+    case "DELETE_FOOD_ITEM": {
+      const { id } = action.payload;
+      return {
+        ...state,
+        foodItems: state.foodItems.filter((f) => f.id !== id),
+      };
+    }
+
+    // ✅ NEW: Add Category
+    case "ADD_FOOD_CATEGORY": {
+      const raw = (action.payload || "").trim();
+      if (!raw) return state;
+
+      const existing = (state.foodCategories || []).map((c) => c.toLowerCase());
+      if (existing.includes(raw.toLowerCase())) {
+        // Already exists (case-insensitive) – no-op
+        return state;
+      }
+
+      return {
+        ...state,
+        foodCategories: [...(state.foodCategories || []), raw],
+      };
+    }
+
+    // ✅ NEW: Rename Category
+    case "RENAME_FOOD_CATEGORY": {
+      const { oldName, newName } = action.payload || {};
+      const next = (newName || "").trim();
+      if (!oldName || !next || oldName === next) return state;
+
+      const cats = state.foodCategories || [];
+      if (!cats.includes(oldName)) return state;
+
+      const updatedCategories = cats.map((c) =>
+        c === oldName ? next : c
+      );
+
+      const updatedFoodItems = (state.foodItems || []).map((f) =>
+        f.category === oldName ? { ...f, category: next } : f
+      );
+
+      return {
+        ...state,
+        foodCategories: updatedCategories,
+        foodItems: updatedFoodItems,
+      };
+    }
+
+    // ✅ NEW: Delete Category (nullify items)
+    case "DELETE_FOOD_CATEGORY": {
+      const { name } = action.payload || {};
+      if (!name) return state;
+
+      const cats = state.foodCategories || [];
+      if (!cats.includes(name)) return state;
+
+      const updatedCategories = cats.filter((c) => c !== name);
+
+      const updatedFoodItems = (state.foodItems || []).map((f) =>
+        f.category === name ? { ...f, category: null } : f
+      );
+
+      return {
+        ...state,
+        foodCategories: updatedCategories,
+        foodItems: updatedFoodItems,
       };
     }
 
