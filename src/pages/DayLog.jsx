@@ -300,58 +300,43 @@ export default function DayLog() {
         />
       </section>
 
-      {/* 5. Meal Sections – tabbed */}
+      {/* 5. Meal Sections – single top bar tabs */}
       <section className="meal-tabs-card">
-        {/* Main header: active meal name + kcal badge */}
-        <div className="meal-main-header">
-          <div className="meal-title">
-            {activeMealDef.icon} {activeMealDef.label}
+        {/* Top bar: tabs + active kcal badge */}
+        <div className="meal-topbar">
+          <div className="meal-top-tabs">
+            {MEAL_TYPES.map((meal) => {
+              const isActive = activeMealId === meal.id;
+              return (
+                <button
+                  key={meal.id}
+                  type="button"
+                  className={`meal-top-tab ${isActive ? "is-active" : ""}`}
+                  onClick={() => setActiveMealId(meal.id)}
+                >
+                  <span className="meal-top-tab-icon">{meal.icon}</span>
+                  <span className="meal-top-tab-label">{meal.label}</span>
+                </button>
+              );
+            })}
           </div>
+
           <span className="meal-kcal-badge">
             {activeMealKcal} kcal
           </span>
         </div>
 
-        {/* Tab header row */}
-        <div className="meal-tabs-header">
-          {MEAL_TYPES.map((meal) => {
-            const entries = mealsByType[meal.id] || [];
-            const sectionKcal = entries.reduce(
-              (s, m) => s + (m.totalKcal ?? 0),
-              0
-            );
-            const isActive = activeMealId === meal.id;
-
-            return (
-              <button
-                key={meal.id}
-                type="button"
-                className={`meal-tab-pill ${isActive ? "is-active" : ""}`}
-                onClick={() => setActiveMealId(meal.id)}
-              >
-                <span className="meal-tab-main">
-                  {meal.icon}
-                  <span className="meal-tab-label-text">{meal.label}</span>
-                </span>
-                {/* Optional: keep small per-meal kcal in pill, or drop if you want cleaner tabs */}
-                <span className="meal-tab-kcal">{sectionKcal} kcal</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Active meal content */}
+        {/* Active meal content below the top bar */}
         {MEAL_TYPES.map((meal) => {
           const entries = mealsByType[meal.id] || [];
-
-          if (meal.id !== activeMealId) return null; // only show active table
+          if (meal.id !== activeMealId) return null;
 
           return (
             <div key={meal.id} className="meal-tab-content">
-              {/* Quick Add Chips */}
+              {/* Quick Add chips */}
               {favouriteFoods.length > 0 && (
                 <div className="quick-add-row">
-                  <span className="quick-add-label">Quick Add:</span>
+                  <span className="quick-add-label">Quick add:</span>
                   {favouriteFoods.map((f) => (
                     <button
                       key={f.id}
@@ -384,9 +369,7 @@ export default function DayLog() {
                         const isEd = editingMealId === m.id;
                         return (
                           <tr key={m.id}>
-                            <td className="meal-col-food">
-                              {m.foodNameSnapshot}
-                            </td>
+                            <td className="meal-col-food">{m.foodNameSnapshot}</td>
                             <td className="text-right">
                               {isEd ? (
                                 <input
@@ -471,7 +454,7 @@ export default function DayLog() {
                 </div>
               )}
 
-              {/* Add Form */}
+              {/* Add form (same as before) */}
               <form
                 onSubmit={(e) => handleAddMeal(e, meal.id)}
                 className="add-meal-container"
