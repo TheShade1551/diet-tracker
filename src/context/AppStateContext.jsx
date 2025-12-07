@@ -65,6 +65,16 @@ function loadFromStorage() {
     const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return initialState;
     const parsed = JSON.parse(raw);
+    
+    // ✅ NEW: Backfill bmrSnapshot for existing dayLogs if missing
+    const dayLogs = parsed.dayLogs || {};
+    const profileBmr = parsed.profile?.bmr ?? null;
+    Object.keys(dayLogs).forEach((date) => {
+      if (dayLogs[date] && !('bmrSnapshot' in dayLogs[date])) {
+        dayLogs[date].bmrSnapshot = profileBmr;
+      }
+    });
+    
     return {
       ...initialState,
       ...parsed,
@@ -72,7 +82,7 @@ function loadFromStorage() {
         ...initialState.profile,
         ...(parsed.profile || {}),
       },
-      dayLogs: parsed.dayLogs || {},
+      dayLogs,
       foodItems: parsed.foodItems || [],
       selectedDate: parsed.selectedDate || todayIso(),
       // ✅ NEW: Hydrate categories or fallback to default
@@ -99,6 +109,7 @@ function ensureDayLog(state, date) {
   return {
     date,
     activityFactor: state.profile?.defaultActivityFactor ?? 1.2,
+    bmrSnapshot: state.profile?.bmr ?? null, // ✅ NEW: Snapshot BMR at creation time
     weightKg: null,
     hydrationLitres: 0,
     notes: "",
@@ -124,8 +135,8 @@ export function getDayDerived(state, dateKey) {
   const day = state.dayLogs?.[dateKey] || {};
   const profile = state.profile || {};
 
-  // 1. Get factors
-  const bmr = Number(profile.bmr) || 0;
+  // 1. Get factors - Use bmrSnapshot if available, fallback to current profile.bmr
+  const bmr = Number(day.bmrSnapshot ?? profile.bmr) || 0;
   const activityFactor = Number(day.activityFactor ?? profile.defaultActivityFactor ?? 1.2);
   const workoutCalories = Number(day.workoutCalories ?? day.workoutKcal ?? 0);
   const intensityFactor = day.intensityFactor; // can be null

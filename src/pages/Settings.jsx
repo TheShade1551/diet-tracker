@@ -66,6 +66,7 @@ const sanitizeImportedState = (state) => {
   if (state.days) delete state.days;
 
   const defaultAF = Number(state.profile.defaultActivityFactor) || 1.2;
+  const profileBmr = state.profile.bmr ?? null;
 
   Object.keys(state.dayLogs).forEach((date) => {
     const d = state.dayLogs[date];
@@ -81,6 +82,11 @@ const sanitizeImportedState = (state) => {
 
     if (!("activityFactor" in d)) {
       d.activityFactor = defaultAF;
+    }
+    
+    // ✅ NEW: Backfill bmrSnapshot if missing during import
+    if (!("bmrSnapshot" in d)) {
+      d.bmrSnapshot = profileBmr;
     }
   });
 
