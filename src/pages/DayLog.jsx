@@ -93,7 +93,7 @@ function WorkoutBox({ day, dispatch }) {
 
 // --- Main Component ---
 export default function DayLog() {
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, getDayDerived } = useAppState();
   const location = useLocation();
 
   // URL Date Sync
@@ -106,7 +106,7 @@ export default function DayLog() {
   }, [location.search, dispatch]);
 
   const selectedDate = state.selectedDate;
-  const dailyTarget = state.profile.dailyKcalTarget || 0; 
+  const { tdee, totalIntake, netKcal } = getDayDerived(state, selectedDate);
 
   // Form States
   const [newMealFoodSearch, setNewMealFoodSearch] = useState({ lunch: "", dinner: "", extra: "" });
@@ -192,9 +192,6 @@ export default function DayLog() {
     0
   );
 
-  const totalIntakeKcal = (dayLog.meals || []).reduce((sum, m) => sum + (m.totalKcal ?? 0), 0);
-  const netDayKcal = dailyTarget > 0 ? (dailyTarget * (dayLog.activityFactor ?? 1.2)) + effectiveWorkout - totalIntakeKcal : 0;
-
   // --- Meta Handlers ---
   const updateMeta = (patch) => dispatch({ type: "UPDATE_DAY_META", payload: { date: selectedDate, patch } });
 
@@ -223,11 +220,12 @@ export default function DayLog() {
         {/* Row 1: Display Stats */}
         <div className="hero-stat">
           <div className="sc-header"><Activity size={16}/> Calories</div>
-          <div className="sc-value">{Math.round(totalIntakeKcal)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kcal</span></div>
+          <div className="sc-value">{Math.round(totalIntake)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kcal</span></div>
           <div className="sc-footer">
-            Target Net: <strong className={netDayKcal >= 0 ? "text-green" : "text-orange"}>
-              {netDayKcal > 0 ? "+" : ""}{Math.round(netDayKcal)}
+            Net: <strong className={netKcal <= 0 ? "text-green" : "text-orange"}>
+              {netKcal < 0 ? "" : "+"}{Math.round(netKcal)}
             </strong>
+            <span style={{marginLeft:'8px'}}>Target (TDEE): <strong>{Math.round(tdee)}</strong></span>
           </div>
         </div>
 

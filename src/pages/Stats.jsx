@@ -5,8 +5,6 @@ import {
   dateToKey,
   fmtNum,
   computeDayMealTotals,
-  computeTDEEForDay,
-  calculateEffectiveWorkout,
   formatIF,
 } from "../utils/calculations";
 import { Calendar as CalendarIcon, Download } from "lucide-react";
@@ -28,7 +26,7 @@ const formatHeaderDate = (iso) => {
 };
 
 export default function Stats() {
-  const { state } = useAppState();
+  const { state, getDayDerived } = useAppState();
   const { profile, dayLogs } = state;
 
   const [pickedDate, setPickedDate] = useState("");
@@ -146,12 +144,10 @@ export default function Stats() {
         const date = dateToKey(day.date || day.dateKey);
         if (!date) return null;
 
+        const { tdee, totalIntake } = getDayDerived(state, date);
         const totals = computeDayMealTotals(day);
-        const baseTdee = computeTDEEForDay(day, profile);
-        const effectiveWorkout = calculateEffectiveWorkout(day);
-        const tdee = baseTdee + effectiveWorkout;
 
-        const deficit = tdee - totals.total; // +ve = under target
+        const deficit = tdee - totalIntake; // +ve = under target
         const estDeltaKg = -(deficit / 7700); // rough rule of thumb
 
         const activityFactor =
@@ -172,7 +168,7 @@ export default function Stats() {
         return {
           date,
           tdee,
-          total: totals.total,
+          total: totalIntake,
           deficit,
           estDeltaKg,
           activityFactor,
@@ -192,7 +188,7 @@ export default function Stats() {
     // newest first – so latest date is closest to the frozen columns
     mapped.sort((a, b) => new Date(b.date) - new Date(a.date));
     return mapped;
-  }, [dayLogs, profile]);
+  }, [dayLogs, state]);
 
   // ---------- Filter + pagination ----------
   const filteredDays = useMemo(() => {

@@ -3,8 +3,6 @@ import React, { useMemo, useState } from "react";
 import { useAppState } from "../context/AppStateContext";
 import {
   computeDayMealTotals,
-  computeTDEEForDay,
-  calculateEffectiveWorkout,
 } from "../utils/calculations";
 
 import {
@@ -130,7 +128,7 @@ function CalorieTooltip({ active, payload, label }) {
 }
 
 export default function Trends() {
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, getDayDerived } = useAppState();
   const { profile, dayLogs, selectedDate } = state;
 
   const [weightInput, setWeightInput] = useState("");
@@ -149,11 +147,8 @@ export default function Trends() {
     const scaleFactor = 0.4; // dial bar heights down but keep ratios
 
     return sorted.map((day) => {
-      const { lunch, dinner, extras, total } = computeDayMealTotals(day);
-
-      const baseTdee = computeTDEEForDay(day, profile);
-      const workout = calculateEffectiveWorkout(day);
-      const dynamicTarget = baseTdee + workout;
+      const { tdee, totalIntake } = getDayDerived(state, day.date);
+      const { lunch, dinner, extras } = computeDayMealTotals(day);
 
       // Store rounded kcal in variables
       const lunchKcal = Math.round(lunch);
@@ -162,8 +157,8 @@ export default function Trends() {
 
       return {
         date: day.date,
-        intake: Math.round(total),
-        target: Math.round(dynamicTarget),
+        intake: Math.round(totalIntake),
+        target: Math.round(tdee),
 
         // raw values (for tooltip, ratios, etc.)
         lunch: lunchKcal,
@@ -176,7 +171,7 @@ export default function Trends() {
         extrasBar: extrasKcal * scaleFactor,
       };
     });
-  }, [dayLogs, profile]); // End of allCalorieSeries useMemo
+  }, [dayLogs, state]); // End of allCalorieSeries useMemo
 
   const allWeightSeries = useMemo(() => {
     const days = Object.values(dayLogs || {});

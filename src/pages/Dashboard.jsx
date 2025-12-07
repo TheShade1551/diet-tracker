@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { useAppState } from "../context/AppStateContext";
 import { 
   computeDayMealTotals, 
-  computeTDEEForDay, 
   calculateEffectiveWorkout 
 } from "../utils/calculations";
 import { 
@@ -61,11 +60,9 @@ export default function Dashboard() {
   let totalBurnAllTime = 0;
 
   effectiveDays.forEach(day => {
-    const totals = computeDayMealTotals(day);
-    const tdee = computeTDEEForDay(day, profile);
-    const workout = calculateEffectiveWorkout(day);
-    totalIntakeAllTime += totals.total;
-    totalBurnAllTime += (tdee + workout);
+    const { tdee, totalIntake } = getDayDerived(state, day.date);
+    totalIntakeAllTime += totalIntake;
+    totalBurnAllTime += tdee;
   });
 
   const allTimeNetDeficit = totalBurnAllTime - totalIntakeAllTime;
@@ -77,11 +74,10 @@ export default function Dashboard() {
   // Iterate backwards from most recent entry
   for (let i = sortedDays.length - 1; i >= 0; i--) {
     const d = sortedDays[i];
-    const t = computeDayMealTotals(d).total;
-    const limit = computeTDEEForDay(d, profile) + calculateEffectiveWorkout(d);
+    const { tdee, totalIntake } = getDayDerived(state, d.date);
     
     // Success = You didn't overeat (Deficit >= 0)
-    if ((limit - t) >= 0) {
+    if ((tdee - totalIntake) >= 0) {
       currentStreak += 1;
     } else {
       break;
