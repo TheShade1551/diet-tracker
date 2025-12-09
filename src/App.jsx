@@ -7,6 +7,7 @@ import Foods from "./pages/Foods";
 import Trends from "./pages/Trends";
 import Settings from "./pages/Settings";
 import Stats from "./pages/Stats"; // 1. Import Added
+import ActivityTab from "./pages/ActivityTab";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           
           {/* 2. Route Added */}
           <Route path="/stats" element={<Stats />} />
+          <Route path="/activity" element={<ActivityTab />} />
 
           <Route path="/settings" element={<Settings />} />
           

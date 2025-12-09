@@ -216,64 +216,119 @@ export default function DayLog() {
       </div>
 
       {/* 2. ✅ FIXED: Consolidated Hero Stats + Inputs Card */}
-      <div className="hero-stats-card">
-        {/* Row 1: Display Stats */}
-        <div className="hero-stat">
-          <div className="sc-header"><Activity size={16}/> Calories</div>
-          <div className="sc-value">{Math.round(totalIntake)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kcal</span></div>
-          <div className="sc-footer">
-            Net: <strong className={netKcal <= 0 ? "text-green" : "text-orange"}>
-              {netKcal < 0 ? "" : "+"}{Math.round(netKcal)}
-            </strong>
-            <span style={{marginLeft:'8px'}}>Target (TDEE): <strong>{Math.round(tdee)}</strong></span>
+      {/* ------------------ REPLACE THIS BLOCK WITH THE FOLLOWING ------------------ */}
+
+      {/* HERO: summary + activity controls */}
+      <section className="hero-card grid lg:grid-cols-3 gap-4 p-4 rounded shadow-sm bg-white">
+        {/* Col 1: Summary numbers */}
+        <div className="col-span-1">
+          <h3 className="text-lg font-semibold">Calories</h3>
+          <div className="mt-2">
+            <div className="text-2xl font-bold">{Math.round(totalIntake || 0)} kcal</div>
+            <div className="text-sm text-slate-600">Net: {netKcal < 0 ? "" : "+"}{Math.round(netKcal)} • Target (TDEE): {Math.round(tdee || 0)}</div>
+          </div>
+
+          <div className="mt-4">
+            <div className="text-sm text-slate-500">Hydration</div>
+            <div className="text-base">{(dayLog.hydrationLitres ?? 0).toFixed(1)} L</div>
+            <div className="text-xs text-slate-400">{dayLog.hydrationLitres >= 3 ? "Great job!" : "Keep drinking water."}</div>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-sm text-slate-500">Weight</div>
+            <div className="text-base">{dayLog.weightKg ?? "--"} kg</div>
+          </div>
+
+          <div className="mt-3">
+            <div className="text-sm text-slate-500">Workout Burn</div>
+            <div className="text-base">{effectiveWorkout ?? 0} kcal</div>
           </div>
         </div>
 
-        <div className="hero-stat">
-          <div className="sc-header"><Droplet size={16}/> Hydration</div>
-          <div className="sc-value text-blue">{dayLog.hydrationLitres?.toFixed(1)} <span style={{fontSize:'1rem', color:'#a0aec0'}}>L</span></div>
-          <div className="sc-footer">
-            {dayLog.hydrationLitres >= 3 ? "Great job! 💧" : "Keep drinking water."}
+        {/* Col 2: Activity / AF controls */}
+        <div className="col-span-1">
+          <h3 className="text-lg font-semibold">Activity Factor</h3>
+
+          <div className="mt-2">
+            <label className="block text-sm">Mode</label>
+            <div className="mt-1 flex gap-2">
+              <label className="inline-flex items-center">
+                <input type="radio" name="activityMode" checked={(dayLog.activityMode ?? "manual") === "manual"} onChange={() => updateMeta({ activityMode: "manual" })} />
+                <span className="ml-2 text-sm">Manual</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input type="radio" name="activityMode" checked={(dayLog.activityMode ?? "") === "advanced_neat"} onChange={() => updateMeta({ activityMode: "advanced_neat" })} />
+                <span className="ml-2 text-sm">Advanced · NEAT</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input type="radio" name="activityMode" checked={(dayLog.activityMode ?? "") === "advanced_full"} onChange={() => updateMeta({ activityMode: "advanced_full" })} />
+                <span className="ml-2 text-sm">Advanced · Full</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-sm">Manual AF (if manual)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.8"
+              max="2.5"
+              value={Number(dayLog.activityFactor ?? state.profile.defaultActivityFactor ?? 1.2)}
+              onChange={(e) => updateMeta({ activityFactor: Number(e.target.value) || 1.0 })}
+              className="mt-1 p-2 border rounded w-full"
+            />
+            <div className="text-xs text-slate-400 mt-1">
+              Tip: pick Manual for quick days. Choose Advanced to calculate AF from activities & NEAT.
+            </div>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <a href="/activity" className="px-3 py-1 rounded bg-indigo-600 text-white text-sm">Open Activity Tab</a>
+            <button
+              className="px-3 py-1 rounded bg-gray-100"
+              onClick={() => {
+                // quick recompute: set same meta to force update
+                dispatch({ type: "UPDATE_DAY_META", payload: { date: selectedDate, patch: { activityFactor: dayLog.activityFactor ?? state.profile.defaultActivityFactor } } });
+              }}
+            >
+              Recompute
+            </button>
           </div>
         </div>
 
-        <div className="hero-stat">
-          <div className="sc-header"><Scale size={16}/> Weight</div>
-          <div className="sc-value">{dayLog.weightKg ? dayLog.weightKg : "--"} <span style={{fontSize:'1rem', color:'#a0aec0'}}>kg</span></div>
-          <div className="sc-footer">
-            Workout Burn: <strong>{effectiveWorkout} kcal</strong>
+        {/* Col 3: Breakdown (from tdeeBreakdown if available) */}
+        <div className="col-span-1">
+          <h3 className="text-lg font-semibold">TDEE Breakdown</h3>
+          <div className="mt-2 text-sm space-y-2">
+            {/* defensive access — tdeeBreakdown may be a nested object in getDayDerived result */}
+            {typeof getDayDerived === "function" && (() => {
+              const breakdown = (getDayDerived && getDayDerived(state, selectedDate)?.tdeeBreakdown) || {};
+              // fallback values
+              const afDisplay = breakdown.afComputed ?? dayLog.activityFactor ?? state.profile.defaultActivityFactor ?? 1.2;
+              const neat = breakdown.neat ?? 0;
+              const eatNet = (breakdown.eat && (typeof breakdown.eat.totalNet !== "undefined" ? breakdown.eat.totalNet : breakdown.eat)) ?? breakdown.eat ?? 0;
+              const maintenance = breakdown.maintenancePlusActivity ?? Math.round((dayLog.bmrSnapshot ?? state.profile.bmr ?? 0) * afDisplay);
+              const tef = breakdown.tef ?? Math.round((totalIntake || 0) * 0.10);
+              const tdeeVal = breakdown.tdee ?? Math.round(maintenance + tef);
+              return (
+                <div>
+                  <div className="flex justify-between"><div>BMR</div><div>{Math.round(dayLog.bmrSnapshot ?? state.profile.bmr ?? 0)} kcal</div></div>
+                  <div className="flex justify-between"><div>AF</div><div>{Number(afDisplay).toFixed(3)}</div></div>
+                  <div className="flex justify-between"><div>Maintenance (BMR + NEAT)</div><div>{maintenance} kcal</div></div>
+                  <div className="flex justify-between"><div>NEAT</div><div>{neat} kcal</div></div>
+                  <div className="flex justify-between"><div>ΣEAT (net)</div><div>{eatNet} kcal</div></div>
+                  <div className="flex justify-between"><div>TEF (10%)</div><div>{tef} kcal</div></div>
+                  <hr className="my-2" />
+                  <div className="flex justify-between font-semibold"><div>TDEE</div><div>{tdeeVal} kcal</div></div>
+                </div>
+              );
+            })()}
           </div>
         </div>
+      </section>
 
-        {/* Row 2: Input Fields */}
-        <div className="hero-input">
-          <label className="input-label">Activity Factor</label>
-          <input 
-            type="number" step="0.1" min="1.0" className="input-full"
-            value={dayLog.activityFactor ?? 1.2}
-            onChange={(e) => updateMeta({ activityFactor: Number(e.target.value) || 1.2 })}
-          />
-          <small className="muted">Default: {state.profile.defaultActivityFactor}</small>
-        </div>
-
-        <div className="hero-input">
-          <label className="input-label text-blue">Water (Litres)</label>
-          <input 
-            type="number" step="0.25" min="0" className="input-full"
-            value={dayLog.hydrationLitres}
-            onChange={(e) => dispatch({ type: "UPDATE_DAY_HYDRATION", payload: { date: selectedDate, hydrationLitres: Number(e.target.value) } })}
-          />
-        </div>
-
-        <div className="hero-input">
-          <label className="input-label">Weight Log (kg)</label>
-          <input 
-            type="number" step="0.1" className="input-full" placeholder="0.0"
-            value={dayLog.weightKg ?? ""}
-            onChange={(e) => updateMeta({ weightKg: e.target.value ? Number(e.target.value) : null })}
-          />
-        </div>
-      </div>
+      {/* ------------------ END REPLACEMENT ------------------ */}
 
       {/* 3. Workout Section */}
       <section>
