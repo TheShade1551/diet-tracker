@@ -3,10 +3,6 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { 
   useAppState, 
-  effectiveWorkoutKcal,
-  UPDATE_DAY_WORKOUT,
-  UPDATE_DAY_INTENSITY,
-  UPDATE_DAY_WORKOUT_DESC 
 } from "../context/AppStateContext";
 import FoodAutocomplete from "../components/FoodAutocomplete";
 
@@ -61,64 +57,6 @@ function CalorieRing({ intake, target }) {
         <div className="calorie-ring-value">{Math.round(intake)}</div>
         <div className="calorie-ring-label">kcal</div>
       </div>
-    </div>
-  );
-}
-
-// --- Sub-Component:  Workout Box ---
-function WorkoutBox({ day, dispatch }) {
-  const [localKcal, setLocalKcal] = useState(day?. workoutCalories ??  "");
-  const [localDesc, setLocalDesc] = useState(day?.workoutDescription ?? "");
-
-  useEffect(() => {
-    setLocalKcal(day?.workoutCalories ?? "");
-    setLocalDesc(day?.workoutDescription ?? "");
-  }, [day?. date, day?.workoutCalories, day?.workoutDescription]);
-
-  const handleKcalBlur = () => dispatch({ type: UPDATE_DAY_WORKOUT, payload: { date: day. date, workoutKcal: localKcal } });
-  const handleDescBlur = () => dispatch({ type: UPDATE_DAY_WORKOUT_DESC, payload: { date: day. date, workoutDesc: localDesc } });
-  const handleIntensityChange = (e) => dispatch({ type: UPDATE_DAY_INTENSITY, payload:  { date: day.date, intensityFactor: e.target.value } });
-
-  return (
-    <div className="meta-card workout-card">
-      <label className="meta-label text-orange">
-        <Activity size={18} /> Workout <small className="muted" style={{ fontWeight: 400, marginLeft: 'auto' }}>(Auto-saved)</small>
-      </label>
-      
-      <div className="form-row-responsive" style={{ gap: '1rem', marginBottom: '1rem' }}>
-        <div style={{ flex: 1 }}>
-          <small className="muted">Burn (kcal)</small>
-          <input 
-            type="number" min="0" className="input-full" placeholder="0" 
-            value={localKcal}
-            onChange={(e) => setLocalKcal(e.target.value)}
-            onBlur={handleKcalBlur}
-          />
-        </div>
-        <div style={{ flex:  1 }}>
-          <small className="muted">Intensity</small>
-          <select className="input-full" value={day?. intensityFactor ??  ""} onChange={handleIntensityChange}>
-            <option value="">— None —</option>
-            <option value="0.5">0.5 — Light Recovery</option>
-            <option value="0.8">0.8 — Light Effort</option>
-            <option value="1.0">1.0 — Moderate</option>
-            <option value="1.2">1.2 — Hard Training</option>
-            <option value="1.5">1.5 — Intense Athlete</option>
-          </select>
-        </div>
-      </div>
-
-      {(Number(localKcal) > 0 || localDesc) && (
-        <div>
-          <small className="muted">Note</small>
-          <input 
-            type="text" maxLength="60" className="input-full" placeholder="e.g.  Chest Day, 5k Run"
-            value={localDesc}
-            onChange={(e) => setLocalDesc(e.target.value)}
-            onBlur={handleDescBlur}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -202,12 +140,9 @@ export default function DayLog() {
   const dayLog = useMemo(() => state.dayLogs[selectedDate] || {
     date: selectedDate, activityFactor: state.profile.defaultActivityFactor ??  1.2,
     hydrationLitres: 0, weightKg: null, notes: "", meals: [],
-    workoutCalories: 0, intensityFactor: null, workoutDescription: "",
     activityMode: "manual"
   }, [state.dayLogs, selectedDate, state.profile]);
 
-  const effectiveWorkout = effectiveWorkoutKcal(dayLog);
-  
   const mealsByType = useMemo(() => {
     const grouped = {}; 
     MEAL_TYPES.forEach(t => grouped[t.id] = []);
@@ -285,7 +220,7 @@ export default function DayLog() {
             </div>
           </div>
 
-          {/* Quick Stats:  Hydration, Weight, Workout */}
+          {/* Quick Stats:  Hydration, Weight, EAT */}
           <div className="mobile-quick-stats">
             <div className="mobile-quick-stat">
               <Droplet size={16} className="mobile-quick-stat-icon" />
@@ -299,8 +234,8 @@ export default function DayLog() {
             </div>
             <div className="mobile-quick-stat">
               <Zap size={16} className="mobile-quick-stat-icon" />
-              <div className="mobile-quick-stat-value">{effectiveWorkout ??  0}</div>
-              <div className="mobile-quick-stat-label">Workout</div>
+              <div className="mobile-quick-stat-value">{eatNet}</div>
+              <div className="mobile-quick-stat-label">EAT (net)</div>
             </div>
           </div>
 
@@ -431,8 +366,8 @@ export default function DayLog() {
             </div>
             
             <div className="hero-secondary-item">
-              <span className="hero-secondary-label"><Zap size={12} /> Workout</span>
-              <span className="hero-secondary-value">{effectiveWorkout ?? 0} kcal</span>
+              <span className="hero-secondary-label"><Zap size={12} /> EAT (net)</span>
+              <span className="hero-secondary-value">{eatNet} kcal</span>
             </div>
           </div>
         </div>
@@ -533,11 +468,6 @@ export default function DayLog() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* 3. Workout Section */}
-      <section>
-        <WorkoutBox day={dayLog} dispatch={dispatch} />
       </section>
 
       {/* 4. Notes */}

@@ -81,9 +81,6 @@ function loadFromStorage() {
       if (!("survey" in dl)) dl.survey = dl.survey ?? null;
       if (!("meals" in dl)) dl.meals = dl.meals ?? [];
       if (!("notes" in dl)) dl.notes = dl.notes ?? "";
-      // Keep legacy workout fields but ensure they're numbers
-      dl.workoutCalories = Number(dl.workoutCalories ?? dl.workoutKcal ?? dl.workout ?? 0);
-      dl.intensityFactor = dl.intensityFactor === "" || dl.intensityFactor === null ? null : Number(dl.intensityFactor ?? 0);
     });
 
     return {
@@ -126,11 +123,6 @@ function ensureDayLog(state, date) {
     activities: [], // new: focused activities (walk/jog)
     steps: null,
     survey: null,
-    // Legacy workout fields (kept for compatibility)
-    workoutCalories: 0,
-    intensityFactor: null,
-    workoutDescription: "",
-    workoutKcal: 0,
   };
 }
 

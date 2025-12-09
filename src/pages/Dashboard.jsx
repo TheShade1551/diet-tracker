@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { useAppState } from "../context/AppStateContext";
 import { 
   computeDayMealTotals, 
-  calculateEffectiveWorkout 
 } from "../utils/calculations";
 import { 
   LayoutDashboard, 
@@ -51,8 +50,7 @@ export default function Dashboard() {
   const effectiveDays = allDays.filter((day) => {
     if (!day) return false;
     const totals = computeDayMealTotals(day);
-    const workout = calculateEffectiveWorkout(day);
-    return totals.total > 0 || workout > 0 || !!day.hydrationLitres || day.weightKg != null;
+    return totals.total > 0 || !!day.hydrationLitres || day.weightKg != null;
   });
 
   // Aggregates

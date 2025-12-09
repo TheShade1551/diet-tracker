@@ -72,13 +72,14 @@ const sanitizeImportedState = (state) => {
     const d = state.dayLogs[date];
     if (!d) return;
 
-    if (!("workoutCalories" in d)) {
-      d.workoutCalories = d.workoutKcal ? Number(d.workoutKcal) : 0;
-    }
+    // Legacy workout fields are retired: we reset them on import
+    if ("workoutKcal" in d) delete d.workoutKcal;
+    if ("workout" in d) delete d.workout;
 
-    if (!("intensityFactor" in d)) {
-      d.intensityFactor = null;
-    }
+    d.workoutCalories = 0;
+    d.intensityFactor = null;
+    // Optional: keep or clear description
+    // d.workoutDescription = "";
 
     if (!("activityFactor" in d)) {
       d.activityFactor = defaultAF;

@@ -117,18 +117,6 @@ export default function Stats() {
           formatter: (v) =>
             v === null || v === undefined ? "-" : v.toFixed(2),
         },
-        {
-          key: "workout",
-          label: "Workout burn",
-          field: "workoutCalories",
-          unit: "kcal",
-        },
-        {
-          key: "intensity",
-          label: "Intensity factor",
-          field: "intensityDisplay",
-          formatter: (v) => v ?? "-",
-        },
       ],
     },
     {
@@ -189,12 +177,6 @@ export default function Stats() {
 
         const activityFactor =
           day.activityFactor ?? profile.defaultActivityFactor ?? 1.2;
-        const workoutCalories = Number(
-          day.workoutCalories ?? day.workoutKcal ?? 0
-        );
-        const intensityFactor =
-          day.intensityFactor === undefined ? null : day.intensityFactor;
-        const intensityDisplay = formatIF(intensityFactor);
 
         const meals = day.meals || [];
         const mealText = (type) =>
@@ -210,9 +192,6 @@ export default function Stats() {
           deficit,
           estDeltaKg,
           activityFactor,
-          workoutCalories,
-          intensityFactor,
-          intensityDisplay,
           lunch: totals.lunch,
           dinner: totals.dinner,
           extras: totals.extras,
@@ -370,7 +349,6 @@ export default function Stats() {
         avgIntake: 0,
         avgDeficit: 0,
         estTotalDeltaKg: 0,
-        workoutDays: 0,
       };
     }
 
@@ -387,14 +365,12 @@ export default function Stats() {
       (acc, d) => acc + (d.estDeltaKg || 0),
       0
     );
-    const workoutDays = allDays.filter((d) => d.workoutCalories > 0).length;
 
     return {
       daysLogged,
       avgIntake: totalIntake / daysLogged,
       avgDeficit: totalDeficit / daysLogged,
       estTotalDeltaKg,
-      workoutDays,
     };
   }, [allDays]);
 
@@ -529,12 +505,6 @@ export default function Stats() {
             <span className="ssc-unit"> kg</span>
           </div>
           <div className="ssc-sub">Rough total over all logged days</div>
-        </div>
-
-        <div className="stats-summary-card">
-          <div className="ssc-label">Workout days</div>
-          <div className="ssc-value">{summary.workoutDays}</div>
-          <div className="ssc-sub">Days with any workout burn</div>
         </div>
       </section>
 
