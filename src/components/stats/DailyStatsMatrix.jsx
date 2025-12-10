@@ -30,6 +30,7 @@ const METRIC_GROUPS = [
   {
     id: "nutrition",
     label: "Nutrition",
+    colorClass: "cat-nutrition",
     rows: [
       { key: "target", label: "Target (TDEE)", field: "tdee", unit: "kcal" },
       {
@@ -405,22 +406,19 @@ export default function DailyStatsMatrix() {
           {/* Desktop: paginated view */}
           <div className="stats-matrix-desktop">
             <div className="stats-table-wrapper">
-              <table className="stats-matrix-table">
+              <table className="stats-unified-table">
                 <thead>
                   <tr>
-                    <th className="sticky-col">Metric</th>
+                    <th className="header-corner-1 col-category" />
+                    <th className="header-corner-2 col-metric">Metric</th>
                     {pageDays.map((day) => {
                       const header = formatHeaderDate(day.date);
                       return (
-                        <th key={day.date}>
-                          <div className="stats-col-header">
-                            <span className="stats-col-weekday">
-                              {header.weekday}
-                            </span>
-                            <span className="stats-col-date">
-                              {header.label}
-                            </span>
-                          </div>
+                        <th key={day.date} className="date-header-cell">
+                          <button type="button" className="date-header-btn">
+                            <span className="date-weekday">{header.weekday}</span>
+                            <span className="date-full">{header.label}</span>
+                          </button>
                         </th>
                       );
                     })}
@@ -434,28 +432,42 @@ export default function DailyStatsMatrix() {
 
                       return (
                         <tr key={`${group.id}-${row.key}`}>
+                          {/* Category column with rowspan (only on first row) */}
                           {rowIndex === 0 && (
                             <td
-                              className="sticky-col stats-metric-group"
+                              className={`col-category ${group.colorClass || ''}`}
                               rowSpan={group.rows.length}
                             >
-                              {group.label}
+                              <span className="vertical-text">{group.label}</span>
                             </td>
                           )}
-                          <td className="sticky-col stats-metric-name">
-                            <button
-                              type="button"
-                              className="stats-metric-sort-btn"
-                              onClick={() => handleMetricSortToggle(row.key)}
-                            >
-                              {row.label}
+
+                          {/* Metric name column */}
+                          <td
+                            className={`col-metric metric-label-cell ${
+                              group.id === "nutrition"
+                                ? "metric-sort-nutrition"
+                                : group.id === "activity"
+                                ? "metric-sort-activity"
+                                : "metric-sort-meals"
+                            } ${isActive && activeDir ? "metric-sort-active" : ""}`}
+                            onClick={() => handleMetricSortToggle(row.key)}
+                          >
+                            <span className="metric-label">
+                              <span>{row.label}</span>
                               {isActive && activeDir && (
-                                <span className="stats-sort-indicator">
+                                <span
+                                  className={`metric-sort-indicator ${
+                                    activeDir === "asc" ? "asc" : "desc"
+                                  }`}
+                                >
                                   {activeDir === "asc" ? "▲" : "▼"}
                                 </span>
                               )}
-                            </button>
+                            </span>
                           </td>
+
+                          {/* Data cells */}
                           {pageDays.map((day) => {
                             const rawValue = day[row.field];
                             const value = formatCellValue(row, rawValue);
@@ -468,7 +480,7 @@ export default function DailyStatsMatrix() {
                             return (
                               <td
                                 key={day.date + row.key}
-                                className={`stats-metric-cell ${colorClass}`}
+                                className={`data-cell ${colorClass}`}
                                 title={tooltip || ""}
                               >
                                 {value}
@@ -485,60 +497,59 @@ export default function DailyStatsMatrix() {
 
             {/* Pagination */}
             <div className="stats-pagination">
-              {totalColumns === 0 ? (
-                <span>No days</span>
-              ) : (
-                <>
-                  <span className="stats-pagination-summary">
-                    Showing {startIdx + 1}–
-                    {Math.min(endIdx, totalColumns)} of {totalColumns} days
-                  </span>
-                  <div className="stats-pagination-controls">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPage((p) => Math.max(0, p - 1))
-                      }
-                      disabled={safePage === 0}
-                    >
-                      ← Prev
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPage((p) =>
-                          Math.min(totalPages - 1, p + 1)
-                        )
-                      }
-                      disabled={safePage >= totalPages - 1}
-                    >
-                      Next →
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="pagination-info">
+                {totalColumns === 0 ? (
+                  "No days"
+                ) : (
+                  <>
+                    Showing <strong>{startIdx + 1}–{Math.min(endIdx, totalColumns)}</strong> of{" "}
+                    <strong>{totalColumns}</strong> days
+                  </>
+                )}
+              </div>
+              <div className="pagination-actions">
+                <button
+                  type="button"
+                  className="stats-small-btn"
+                  onClick={() =>
+                    setPage((p) => Math.max(0, p - 1))
+                  }
+                  disabled={safePage === 0}
+                >
+                  ← Prev
+                </button>
+                <button
+                  type="button"
+                  className="stats-small-btn"
+                  onClick={() =>
+                    setPage((p) =>
+                      Math.min(totalPages - 1, p + 1)
+                    )
+                  }
+                  disabled={safePage >= totalPages - 1}
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Mobile: horizontal scroll all days */}
           <div className="stats-matrix-mobile">
             <div className="stats-table-wrapper">
-              <table className="stats-matrix-table">
+              <table className="stats-unified-table">
                 <thead>
                   <tr>
-                    <th className="sticky-col">Metric</th>
+                    <th className="header-corner-1 col-category" />
+                    <th className="header-corner-2 col-metric">Metric</th>
                     {mobileDays.map((day) => {
                       const header = formatHeaderDate(day.date);
                       return (
-                        <th key={day.date}>
-                          <div className="stats-col-header">
-                            <span className="stats-col-weekday">
-                              {header.weekday}
-                            </span>
-                            <span className="stats-col-date">
-                              {header.label}
-                            </span>
-                          </div>
+                        <th key={day.date} className="date-header-cell">
+                          <button type="button" className="date-header-btn">
+                            <span className="date-weekday">{header.weekday}</span>
+                            <span className="date-full">{header.label}</span>
+                          </button>
                         </th>
                       );
                     })}
@@ -552,28 +563,42 @@ export default function DailyStatsMatrix() {
 
                       return (
                         <tr key={`${group.id}-${row.key}-mobile`}>
+                          {/* Category column with rowspan (only on first row) */}
                           {rowIndex === 0 && (
                             <td
-                              className="sticky-col stats-metric-group"
+                              className={`col-category ${group.colorClass || ''}`}
                               rowSpan={group.rows.length}
                             >
-                              {group.label}
+                              <span className="vertical-text">{group.label}</span>
                             </td>
                           )}
-                          <td className="sticky-col stats-metric-name">
-                            <button
-                              type="button"
-                              className="stats-metric-sort-btn"
-                              onClick={() => handleMetricSortToggle(row.key)}
-                            >
-                              {row.label}
+
+                          {/* Metric name column */}
+                          <td
+                            className={`col-metric metric-label-cell ${
+                              group.id === "nutrition"
+                                ? "metric-sort-nutrition"
+                                : group.id === "activity"
+                                ? "metric-sort-activity"
+                                : "metric-sort-meals"
+                            } ${isActive && activeDir ? "metric-sort-active" : ""}`}
+                            onClick={() => handleMetricSortToggle(row.key)}
+                          >
+                            <span className="metric-label">
+                              <span>{row.label}</span>
                               {isActive && activeDir && (
-                                <span className="stats-sort-indicator">
+                                <span
+                                  className={`metric-sort-indicator ${
+                                    activeDir === "asc" ? "asc" : "desc"
+                                  }`}
+                                >
                                   {activeDir === "asc" ? "▲" : "▼"}
                                 </span>
                               )}
-                            </button>
+                            </span>
                           </td>
+
+                          {/* Data cells */}
                           {mobileDays.map((day) => {
                             const rawValue = day[row.field];
                             const value = formatCellValue(row, rawValue);
@@ -586,7 +611,7 @@ export default function DailyStatsMatrix() {
                             return (
                               <td
                                 key={day.date + row.key}
-                                className={`stats-metric-cell ${colorClass}`}
+                                className={`data-cell ${colorClass}`}
                                 title={tooltip || ""}
                               >
                                 {value}
