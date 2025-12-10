@@ -239,7 +239,7 @@ export function computeNEAT({ steps = null, weight_kg = null, survey = null, bmr
     const baseBmr = BMR || 0;
     neatSurvey = round(pct * baseBmr);
   }
-  if (neatSteps != null && neatSurvey != null) return round(0.6 * neatSteps + 0.4 * neatSurvey);
+  if (neatSteps != null && neatSurvey != null) return round(0.75 * neatSteps + 0.25 * neatSurvey);
   if (neatSteps != null) return neatSteps;
   if (neatSurvey != null) return neatSurvey;
   return round(0.10 * BMR);
