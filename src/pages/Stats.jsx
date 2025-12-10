@@ -57,6 +57,21 @@ export default function Stats() {
   const { state, getDayDerived } = useAppState();
   const { profile, dayLogs } = state;
 
+  // Latest logged date (YYYY-MM-DD) across all day logs
+  const latestLoggedDateKey = useMemo(() => {
+    const keys = Object.keys(dayLogs || {});
+    if (!keys.length) return null;
+
+    // Keys are already date keys, but normalise just in case
+    const normalized = keys
+      .map((k) => dateToKey(k))
+      .filter(Boolean)
+      .sort((a, b) => new Date(a) - new Date(b)); // oldest -> newest
+
+    if (!normalized.length) return null;
+    return normalized[normalized.length - 1]; // newest
+  }, [dayLogs]);
+
   const [pickedDate, setPickedDate] = useState("");
   const [pageSize, setPageSize] = useState(7);
   const [page, setPage] = useState(0);
@@ -248,12 +263,15 @@ export default function Stats() {
   }, [dayLogs, state, profile, getDayDerived]);
 
   // ---------- TDEE Decomposition Data ----------
-  const selectedDate =
-    state.selectedDate || new Date().toISOString().slice(0, 10);
+  // Anchor on the latest logged day; if none, fall back to selectedDate / today.
+  const baseDecompositionDate =
+    latestLoggedDateKey ||
+    state.selectedDate ||
+    new Date().toISOString().slice(0, 10);
 
   const decompositionDateKeys = useMemo(
-    () => isoDaysRange(selectedDate, decompositionDays),
-    [selectedDate, decompositionDays]
+    () => isoDaysRange(baseDecompositionDate, decompositionDays),
+    [baseDecompositionDate, decompositionDays]
   );
 
   const decompositionRows = useMemo(() => {
@@ -310,6 +328,12 @@ export default function Stats() {
       };
     });
   }, [state, decompositionDateKeys, getDayDerived, profile]);
+
+  // Display rows in reverse chronological order (newest first)
+  const displayDecompositionRows = useMemo(
+    () => decompositionRows.slice().reverse(),
+    [decompositionRows]
+  );
 
   // AF polyline points for mini-line chart
   const afPoints = useMemo(() => {
@@ -668,7 +692,7 @@ export default function Stats() {
 
                 {/* Stacked bars */}
                 <div className="stats-bars-grid">
-                  {decompositionRows.map((r) => {
+                  {displayDecompositionRows.map((r) => {
                     const total = Math.max(
                       1,
                       r.bmr + r.neat + r.eatNet + r.tef
@@ -750,7 +774,7 @@ export default function Stats() {
                           </tr>
                         </thead>
                         <tbody>
-                          {decompositionRows.map((r) => (
+                          {displayDecompositionRows.map((r) => (
                             <tr key={r.dateKey}>
                               <td>{r.dateKey}</td>
                               <td>{Math.round(r.bmr)}</td>
@@ -850,6 +874,7 @@ export default function Stats() {
                     <table className="stats-matrix-table">
                       <thead>
                         <tr>
+                          <th className="sticky-col">Group</th>
                           <th className="sticky-col">Metric</th>
                           {pageDays.map((day) => {
                             const header = formatHeaderDate(day.date);
@@ -976,6 +1001,7 @@ export default function Stats() {
                     <table className="stats-matrix-table">
                       <thead>
                         <tr>
+                          <th className="sticky-col">Group</th>
                           <th className="sticky-col">Metric</th>
                           {mobileDays.map((day) => {
                             const header = formatHeaderDate(day.date);

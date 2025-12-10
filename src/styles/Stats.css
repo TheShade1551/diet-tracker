@@ -29,9 +29,9 @@
 }
 
 .stats-title-icon {
-  width:  36px;
+  width: 36px;
   height: 36px;
-  border-radius:  10px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -42,7 +42,7 @@
 .stats-title {
   font-size: var(--text-xl);
   font-weight: 700;
-  margin:  0;
+  margin: 0;
   color: var(--text);
 }
 
@@ -105,7 +105,7 @@
 }
 
 .ssc-value {
-  font-size: 1.75rem;
+  font-size:  1.75rem;
   font-weight:  700;
   color: var(--text);
   display: flex;
@@ -160,7 +160,7 @@
 .stats-card-header {
   display: flex;
   justify-content: space-between;
-  align-items:  flex-start;
+  align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
@@ -341,7 +341,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom:  0.75rem;
+  margin-bottom: 0.75rem;
   flex-wrap: wrap;
 }
 
@@ -359,7 +359,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items:  center;
+  align-items: center;
 }
 
 .stats-af-dot {
@@ -395,7 +395,7 @@
 }
 
 .stats-af-baseline {
-  stroke: rgba(59, 130, 246, 0.25);
+  stroke:  rgba(59, 130, 246, 0.25);
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }
@@ -452,7 +452,7 @@
 .stats-bar-row:hover {
   background: var(--surface-muted);
   margin:  0 -0.5rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0. 5rem;
   border-radius: 6px;
 }
 
@@ -513,7 +513,7 @@
   cursor: pointer;
   color: var(--primary);
   font-weight: 500;
-  padding:  0.25rem 0;
+  padding: 0.25rem 0;
   user-select: none;
 }
 
@@ -523,7 +523,7 @@
 
 .stats-breakdown-table-wrapper {
   margin-top: 0.6rem;
-  overflow-x:  auto;
+  overflow-x: auto;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
 }
@@ -563,7 +563,9 @@
   font-weight: 500;
 }
 
-/* Matrix table */
+/* ==================== */
+/* MATRIX TABLE - FIXED */
+/* ==================== */
 
 .stats-empty {
   font-size: var(--text-sm);
@@ -586,18 +588,40 @@
   overflow-x: auto;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
+  background: var(--surface);
 }
 
 .stats-matrix-table {
   width: 100%;
-  border-collapse:  collapse;
-  font-size:  var(--text-xs);
+  border-collapse:  separate;
+  border-spacing: 0;
+  font-size: var(--text-xs);
+  table-layout: fixed;
+}
+
+/* Fixed column widths for proper layout */
+.stats-matrix-table colgroup .col-group {
+  width: 70px;
+}
+
+.stats-matrix-table colgroup .col-metric {
+  width: 100px;
+}
+
+.stats-matrix-table colgroup .col-data {
+  width: 100px;
 }
 
 .stats-matrix-table th,
 .stats-matrix-table td {
-  padding: 0.6rem 0.7rem;
+  padding: 0.65rem 0.75rem;
   border-bottom:  1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.stats-matrix-table th:last-child,
+.stats-matrix-table td:last-child {
+  border-right: none;
 }
 
 .stats-matrix-table thead th {
@@ -607,12 +631,33 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index:  3;
 }
 
+/* First two header cells (Group + Metric labels) */
 .stats-matrix-table thead th:first-child {
+  text-align: center;
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--surface-muted);
+  min-width: 70px;
+  width: 70px;
+}
+
+.stats-matrix-table thead th:nth-child(2) {
   text-align: left;
+  position: sticky;
+  left: 70px;
+  z-index: 4;
+  background:  var(--surface-muted);
+  min-width: 100px;
+  width: 100px;
+  border-right: 2px solid var(--border-subtle);
 }
 
 .stats-matrix-table tbody tr:last-child td {
@@ -620,90 +665,121 @@
 }
 
 .stats-matrix-table tbody tr:hover td {
-  background: rgba(var(--primary-rgb, 59, 130, 246), 0.04);
+  background: rgba(59, 130, 246, 0.04);
 }
 
+.stats-matrix-table tbody tr:hover td.sticky-col {
+  background: var(--surface);
+}
+
+/* Date column headers */
 .stats-col-header {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  align-items: center;
+  gap: 0.2rem;
+  align-items:  center;
+  padding: 0.25rem 0;
 }
 
 .stats-col-weekday {
   font-weight: 700;
   color: var(--text);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
 }
 
 .stats-col-date {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   color: var(--text-soft);
   font-weight: 500;
+  text-transform: none;
 }
 
+/* Sticky columns */
 .sticky-col {
   position: sticky;
-  left: 0;
   background: var(--surface);
   z-index: 2;
 }
 
-.stats-matrix-table tbody tr:hover .sticky-col {
-  background: var(--surface);
+.sticky-col:first-child,
+.stats-metric-group {
+  left: 0;
 }
 
+.sticky-col:nth-child(2),
+.stats-metric-name {
+  left: 70px;
+}
+
+/* Group label column (NUTRITION, ACTIVITY, MEALS) */
 .stats-metric-group {
   font-weight: 700;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.65rem;
+  color: var(--primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   vertical-align: middle;
-  border-right: 2px solid var(--border-subtle);
-  background: var(--surface-muted) !important;
-  min-width: 70px;
   text-align: center;
+  border-right: 2px solid var(--border-subtle) !important;
+  background: var(--surface) !important;
+  min-width: 70px;
+  width: 70px;
+  writing-mode: vertical-rl;
+  text-orientation:  mixed;
+  transform: rotate(180deg);
+  padding:  0.75rem 0.4rem;
+  line-height: 1.3;
 }
 
+/* Metric name column */
 .stats-metric-name {
-  font-size: 0.75rem;
-  min-width: 90px;
+  font-size:  0.78rem;
+  min-width: 100px;
+  width: 100px;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface) !important;
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .stats-metric-sort-btn {
   background: transparent;
   border: none;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0;
   font:  inherit;
-  font-size:  0.75rem;
+  font-size: 0.78rem;
   color: var(--text);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   transition: color 0.2s ease;
   text-align: left;
   width: 100%;
+  font-weight: 500;
 }
 
 .stats-metric-sort-btn:hover {
-  color: var(--primary);
+  color:  var(--primary);
 }
 
 .stats-sort-indicator {
-  font-size: 0.65em;
+  font-size: 0.6em;
   color: var(--primary);
   font-weight: 700;
 }
 
+/* Data cells */
 .stats-metric-cell {
   text-align: center;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+  font-size: 0.78rem;
+  color: var(--text);
+  min-width: 90px;
 }
 
 /* Pagination */
@@ -715,7 +791,7 @@
   gap: 1rem;
   margin-top:  1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border-subtle);
+  border-top:  1px solid var(--border-subtle);
   font-size: var(--text-xs);
   color: var(--text-soft);
 }
@@ -896,9 +972,9 @@
   }
 
   .stats-af-header {
-    flex-direction:  column;
-    align-items:  flex-start;
-    gap:  0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 
   .stats-af-svg {
@@ -942,12 +1018,22 @@
   }
 
   .stats-metric-group {
-    min-width: 50px;
-    font-size: 0.6rem;
+    min-width: 45px;
+    width: 45px;
+    font-size: 0.58rem;
+    padding: 0.5rem 0.25rem;
   }
 
   .stats-metric-name {
-    min-width: 70px;
+    min-width: 75px;
+    width: 75px;
+    left: 45px;
+  }
+
+  .stats-matrix-table thead th:nth-child(2) {
+    left: 45px;
+    min-width: 75px;
+    width: 75px;
   }
 
   .stats-metric-sort-btn {
@@ -955,7 +1041,7 @@
   }
 
   .stats-col-header {
-    min-width: 65px;
+    min-width: 70px;
   }
 
   .stats-col-weekday {
@@ -964,6 +1050,11 @@
 
   .stats-col-date {
     font-size: 0.58rem;
+  }
+
+  .stats-metric-cell {
+    min-width: 70px;
+    font-size: 0.68rem;
   }
 
   .stats-pagination {
@@ -1021,10 +1112,27 @@
   .stats-select {
     flex: 1;
   }
+
+  .stats-metric-group {
+    min-width: 40px;
+    width: 40px;
+  }
+
+  .stats-metric-name {
+    min-width:  65px;
+    width: 65px;
+    left: 40px;
+  }
+
+  .stats-matrix-table thead th:nth-child(2) {
+    left: 40px;
+    min-width: 65px;
+    width: 65px;
+  }
 }
 
 /* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
+@media (hover:  none) and (pointer: coarse) {
   .stats-summary-card:hover {
     transform: none;
     box-shadow: var(--shadow-soft);
