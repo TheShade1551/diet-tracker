@@ -140,6 +140,14 @@ export default function Settings() {
     dailyCalorieTarget: profile.dailyCalorieTarget ?? 0,
   });
 
+  const [showAdvancedConstants, setShowAdvancedConstants] = useState(false);
+  const [consts, setConsts] = useState({
+    WALK_KCAL_PER_KG_PER_KM: profile.WALK_KCAL_PER_KG_PER_KM ?? 0.78,
+    RUN_KCAL_PER_KG_PER_KM: profile.RUN_KCAL_PER_KG_PER_KM ?? 1.0,
+    STEP_KCAL_CONST: profile.STEP_KCAL_CONST ?? 0.00057,
+    DEFAULT_TEF_RATIO: profile.DEFAULT_TEF_RATIO ?? 0.10,
+  });
+
   const [feedback, setFeedback] = useState(null);
   const [importData, setImportData] = useState(null);
   const [importError, setImportError] = useState(null);
@@ -188,6 +196,7 @@ export default function Settings() {
 
     saveProfile({
       ...form,
+      ...consts,
       heightCm: toNumberOrEmpty(form.heightCm),
       weightKg: toNumberOrEmpty(form.weightKg),
       bmr: toNumberOrEmpty(form.bmr),
@@ -519,6 +528,37 @@ export default function Settings() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Add this block */}
+            <div className="settings-advanced">
+              <button type="button" onClick={() => setShowAdvancedConstants(s => !s)}>
+                {showAdvancedConstants ? "Hide advanced constants" : "Show advanced constants"}
+              </button>
+              {showAdvancedConstants && (
+                <div className="settings-advanced-grid">
+                  <label>
+                    WALK kcal/kg/km
+                    <input type="number" step="0.01" value={consts.WALK_KCAL_PER_KG_PER_KM}
+                      onChange={(e)=> setConsts({...consts, WALK_KCAL_PER_KG_PER_KM: Number(e.target.value)})}/>
+                  </label>
+                  <label>
+                    RUN kcal/kg/km
+                    <input type="number" step="0.01" value={consts.RUN_KCAL_PER_KG_PER_KM}
+                      onChange={(e)=> setConsts({...consts, RUN_KCAL_PER_KG_PER_KM: Number(e.target.value)})}/>
+                  </label>
+                  <label>
+                    Step kcal const
+                    <input type="number" step="0.00001" value={consts.STEP_KCAL_CONST}
+                      onChange={(e)=> setConsts({...consts, STEP_KCAL_CONST: Number(e.target.value)})}/>
+                  </label>
+                  <label>
+                    TEF ratio
+                    <input type="number" step="0.01" value={consts.DEFAULT_TEF_RATIO}
+                      onChange={(e)=> setConsts({...consts, DEFAULT_TEF_RATIO: Number(e.target.value)})}/>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Preview row */}

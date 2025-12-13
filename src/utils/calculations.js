@@ -118,6 +118,16 @@ export const RUN_KCAL_PER_KG_PER_KM = 1.00;
 export const STEP_KCAL_CONST = 0.00057;
 export const DEFAULT_TEF_RATIO = 0.10;
 
+// add this after existing constants
+export function getConstFromProfile(profile = {}) {
+  return {
+    WALK_KCAL_PER_KG_PER_KM: toNum(profile.WALK_KCAL_PER_KG_PER_KM ?? profile.walkKcalPerKgPerKm ?? WALK_KCAL_PER_KG_PER_KM),
+    RUN_KCAL_PER_KG_PER_KM: toNum(profile.RUN_KCAL_PER_KG_PER_KM ?? profile.runKcalPerKgPerKm ?? RUN_KCAL_PER_KG_PER_KM),
+    STEP_KCAL_CONST: Number(profile.STEP_KCAL_CONST ?? profile.stepKcalConst ?? STEP_KCAL_CONST),
+    DEFAULT_TEF_RATIO: Number(profile.DEFAULT_TEF_RATIO ?? profile.tefRatio ?? DEFAULT_TEF_RATIO),
+  };
+}
+
 // BMR share
 export function bmrShareDuring(bmr, duration_min) {
   const B = toNum(bmr, 0);
@@ -126,16 +136,18 @@ export function bmrShareDuring(bmr, duration_min) {
 }
 
 // Distance-based gross kcal
-export function grossKcalWalkFromDistance({ distance_km, weight_kg }) {
+export function grossKcalWalkFromDistance({ distance_km, weight_kg, profile } = {}) {
   const d = toNum(distance_km, 0);
   const w = toNum(weight_kg, 70);
-  return d * w * WALK_KCAL_PER_KG_PER_KM;
+  const c = getConstFromProfile(profile);
+  return d * w * c.WALK_KCAL_PER_KG_PER_KM;
 }
 
-export function grossKcalJogFromDistance({ distance_km, weight_kg }) {
+export function grossKcalJogFromDistance({ distance_km, weight_kg, profile } = {}) {
   const d = toNum(distance_km, 0);
   const w = toNum(weight_kg, 70);
-  return d * w * RUN_KCAL_PER_KG_PER_KM;
+  const c = getConstFromProfile(profile);
+  return d * w * c.RUN_KCAL_PER_KG_PER_KM;
 }
 
 // Optional speed estimator (not required if distance is always provided)
@@ -163,7 +175,7 @@ export function computeEAT_walk(activity = {}, profile = {}) {
 
   let gross = 0;
   if (activity.distance_km != null) {
-    gross = grossKcalWalkFromDistance({ distance_km: activity.distance_km, weight_kg });
+    gross = grossKcalWalkFromDistance({ distance_km: activity.distance_km, weight_kg, profile });
     // apply a gentle intensity scaling (intensity: 0..100 -> scale near 1.0)
     // default intensity = 50 -> scale 1.0
     const intensity = toNum(activity.intensity, 50);
@@ -173,7 +185,7 @@ export function computeEAT_walk(activity = {}, profile = {}) {
   } else {
     // fallback: estimate distance from duration & intensity
     const distance = estimateDistanceFromDurationAndIntensity({ activityType: 'walk', duration_min, intensity: activity.intensity });
-    gross = grossKcalWalkFromDistance({ distance_km: distance, weight_kg });
+    gross = grossKcalWalkFromDistance({ distance_km: distance, weight_kg, profile });
   }
 
   const bshare = bmrShareDuring(bmr, duration_min);
@@ -189,7 +201,7 @@ export function computeEAT_jog(activity = {}, profile = {}) {
 
   let gross = 0;
   if (activity.distance_km != null) {
-    gross = grossKcalJogFromDistance({ distance_km: activity.distance_km, weight_kg });
+    gross = grossKcalJogFromDistance({ distance_km: activity.distance_km, weight_kg, profile });
     // gentle intensity scaling for jogging as well
     const intensity = toNum(activity.intensity, 50);
     const scale = 1 + (intensity - 50) / 300; // slightly stronger effect for running
@@ -197,7 +209,7 @@ export function computeEAT_jog(activity = {}, profile = {}) {
     gross = gross * clampedScale;
   } else {
     const distance = estimateDistanceFromDurationAndIntensity({ activityType: 'jog', duration_min, intensity: activity.intensity });
-    gross = grossKcalJogFromDistance({ distance_km: distance, weight_kg });
+    gross = grossKcalJogFromDistance({ distance_km: distance, weight_kg, profile });
   }
 
   const bshare = bmrShareDuring(bmr, duration_min);
@@ -241,10 +253,11 @@ export function neatPercentFromSurvey({ subjective = 50, standingHours = 0, acti
   return pct;
 }
 
-export function computeNEAT({ steps = null, weight_kg = null, survey = null, bmr = null } = {}) {
+export function computeNEAT({ steps = null, weight_kg = null, survey = null, bmr = null, profile = {} } = {}) {
   const w = toNum(weight_kg, null);
   const BMR = toNum(bmr, 0);
-  const neatSteps = (steps != null && w != null) ? round((toNum(steps, 0) * (STEP_KCAL_CONST * w))) : null;
+  const c = getConstFromProfile(profile);
+  const neatSteps = (steps != null && w != null) ? round((toNum(steps, 0) * (c.STEP_KCAL_CONST * w))) : null;
   let neatSurvey = null;
   if (survey) {
     const pct = neatPercentFromSurvey(survey);
@@ -258,21 +271,24 @@ export function computeNEAT({ steps = null, weight_kg = null, survey = null, bmr
 }
 
 // Advanced AF & TDEE
-export function computeAdvancedActivityFactor({ bmr, weight_kg, activities = [], steps = null, survey = null } = {}) {
+export function computeAdvancedActivityFactor({ bmr, weight_kg, activities = [], steps = null, survey = null, profile = {} } = {}) {
   const BMR = toNum(bmr, 0);
-  const profile = { weight_kg, bmr };
-  const eatResult = sumEATFromActivities(activities, profile);
+  // merge weight_kg and bmr into profile if not present
+  const effectiveProfile = { ...profile, weight_kg: profile.weight_kg ?? weight_kg, bmr: profile.bmr ?? bmr };
+  const eatResult = sumEATFromActivities(activities, effectiveProfile);
   const EAT_net = toNum(eatResult.totalNet, 0);
-  const neat = computeNEAT({ steps, weight_kg, survey, bmr: BMR });
+  const neat = computeNEAT({ steps, weight_kg: effectiveProfile.weight_kg, survey, bmr: BMR, profile: effectiveProfile });
   const af = BMR > 0 ? (BMR + neat + EAT_net) / BMR : 1.0;
   return { afAdvanced: Number(af.toFixed(3)), neat: round(neat), eat: round(EAT_net), maintenancePlusActivity: round(BMR + neat + EAT_net), eatDetails: eatResult.details };
 }
 
-export function computeTDEEfromAFandTEF({ bmr, activityFactor = 1.0, intakeKcal = null, tefRatio = DEFAULT_TEF_RATIO } = {}) {
+export function computeTDEEfromAFandTEF({ bmr, activityFactor = 1.0, intakeKcal = null, tefRatio, profile = {} } = {}) {
   const BMR = toNum(bmr, 0);
   const AF = Number(activityFactor) || 1.0;
+  const c = getConstFromProfile(profile);
+  const effectiveTefRatio = (tefRatio !== undefined) ? Number(tefRatio) : c.DEFAULT_TEF_RATIO;
   const maintenancePlusActivity = round(BMR * AF);
-  const tef = round(toNum(intakeKcal, 0) * Number(tefRatio));
+  const tef = round(toNum(intakeKcal, 0) * effectiveTefRatio);
   const tdee = round(maintenancePlusActivity + tef);
   return { maintenancePlusActivity, tef, tdee };
 }

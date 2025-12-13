@@ -1,3 +1,5 @@
+// src/pages/ActivityTab.jsx
+
 import React, { useEffect, useState, useMemo } from "react";
 import { useAppState } from "../context/AppStateContext";
 import { computeEATForActivity, sumEATFromActivities, computeNEAT, computeAdvancedActivityFactor } from "../utils/calculations";
@@ -39,18 +41,20 @@ export default function ActivityTab() {
 
   const bmrSnapshot = useMemo(() => Number(day.bmrSnapshot ?? profile.bmr ?? 0), [day.bmrSnapshot, profile.bmr]);
 
+  const effectiveProfile = useMemo(() => ({ ...profile, weight_kg: effectiveWeightKg, bmr: bmrSnapshot }), [profile, effectiveWeightKg, bmrSnapshot]);
+
   const previewSteps = useMemo(() => steps === "" ? null : Number(steps), [steps]);
 
   // computed preview of totals (pass effective weight & bmr snapshot)
   const eatTotals = useMemo(() => {
-    return sumEATFromActivities(activities, { weight_kg: effectiveWeightKg, bmr: bmrSnapshot });
-  }, [activities, effectiveWeightKg, bmrSnapshot]);
+    return sumEATFromActivities(activities, effectiveProfile);
+  }, [activities, effectiveProfile]);
 
   // compute NEAT preview from local steps/survey for quick feedback
   const neatPreview = useMemo(() => {
     const survey = { subjective: Number(subjective), standingHours: Number(standingHours), activeCommute: !!activeCommute };
-    return computeNEAT({ steps: previewSteps, weight_kg: effectiveWeightKg, survey, bmr: bmrSnapshot });
-  }, [previewSteps, subjective, standingHours, activeCommute, effectiveWeightKg, bmrSnapshot]);
+    return computeNEAT({ steps: previewSteps, weight_kg: effectiveWeightKg, survey, bmr: bmrSnapshot, profile: effectiveProfile });
+  }, [previewSteps, subjective, standingHours, activeCommute, effectiveWeightKg, bmrSnapshot, effectiveProfile]);
 
   // compute Advanced AF preview combining current activities + NEAT
   const advAFPreview = useMemo(() => {
@@ -61,8 +65,9 @@ export default function ActivityTab() {
       activities,
       steps: previewSteps,
       survey,
+      profile: effectiveProfile,
     });
-  }, [activities, previewSteps, subjective, standingHours, activeCommute, effectiveWeightKg, bmrSnapshot]);
+  }, [activities, previewSteps, subjective, standingHours, activeCommute, effectiveWeightKg, bmrSnapshot, effectiveProfile]);
 
   function addEmptyActivity(type = "walk") {
     const a = {
@@ -168,7 +173,7 @@ export default function ActivityTab() {
           </div>
         ) : (
           activities.map((a) => {
-            const preview = computeEATForActivity(a, { weight_kg: effectiveWeightKg, bmr: bmrSnapshot });
+            const preview = computeEATForActivity(a, effectiveProfile);
             return (
               <div key={a.id} className="activity-entry">
                 <div className="activity-entry-header">

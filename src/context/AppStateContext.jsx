@@ -5,6 +5,7 @@ import {
   calculateDayTDEE,          // legacy compatibility
   computeDayMealTotals,
   calculateEffectiveWorkout,
+  getConstFromProfile,
   // advanced functions:
   computeAdvancedActivityFactor,
   computeTDEEfromAFandTEF,
@@ -59,15 +60,27 @@ export function effectiveWorkoutKcal(day) {
   return calculateEffectiveWorkout(day);
 }
 
+function toNum(x, fallback = 0) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function loadFromStorage() {
   try {
     const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return initialState;
     const parsed = JSON.parse(raw);
 
+    // Backfill profile constants
+    const profile = parsed.profile || {};
+    profile.WALK_KCAL_PER_KG_PER_KM = toNum(profile.WALK_KCAL_PER_KG_PER_KM ?? profile.walkKcalPerKgPerKm ?? 0.78);
+    profile.RUN_KCAL_PER_KG_PER_KM = toNum(profile.RUN_KCAL_PER_KG_PER_KM ?? profile.runKcalPerKgPerKm ?? 1.0);
+    profile.STEP_KCAL_CONST = toNum(profile.STEP_KCAL_CONST ?? profile.stepKcalConst ?? 0.00057);
+    profile.DEFAULT_TEF_RATIO = toNum(profile.DEFAULT_TEF_RATIO ?? profile.tefRatio ?? 0.10);
+
     // Backfill dayLogs canonical fields
     const dayLogs = parsed.dayLogs || {};
-    const profileBmr = parsed.profile?.bmr ?? null;
+    const profileBmr = profile.bmr ?? null;
 
     Object.keys(dayLogs).forEach((date) => {
       const dl = dayLogs[date] || {};
@@ -76,7 +89,7 @@ function loadFromStorage() {
       // ensure canonical fields exist
       if (!("activities" in dl)) dl.activities = [];
       if (!("activityMode" in dl)) dl.activityMode = dl.activityMode || "manual";
-      if (!("activityFactor" in dl)) dl.activityFactor = dl.activityFactor ?? parsed.profile?.defaultActivityFactor ?? 1.2;
+      if (!("activityFactor" in dl)) dl.activityFactor = dl.activityFactor ?? profile.defaultActivityFactor ?? 1.2;
       if (!("steps" in dl)) dl.steps = dl.steps ?? null;
       if (!("survey" in dl)) dl.survey = dl.survey ?? null;
       if (!("meals" in dl)) dl.meals = dl.meals ?? [];
@@ -86,7 +99,7 @@ function loadFromStorage() {
     return {
       ...initialState,
       ...parsed,
-      profile: { ...initialState.profile, ...(parsed.profile || {}) },
+      profile: { ...initialState.profile, ...profile },
       dayLogs,
       foodItems: parsed.foodItems || [],
       selectedDate: parsed.selectedDate || todayIso(),
@@ -159,6 +172,7 @@ export function getDayDerived(state, dateKey) {
       activities: Array.isArray(day.activities) ? day.activities : [],
       steps: day.steps ?? null,
       survey: day.survey ?? null,
+      profile,
     });
 
     // adv contains: { afAdvanced, neat, eat, maintenancePlusActivity, eatDetails }
@@ -166,7 +180,7 @@ export function getDayDerived(state, dateKey) {
       bmr,
       activityFactor: adv.afAdvanced,
       intakeKcal: totalIntake,
-      // tefRatio: optional, default 0.1 used if omitted
+      profile,
     });
 
     tdeeBreakdown = {
@@ -185,8 +199,9 @@ export function getDayDerived(state, dateKey) {
     // Manual / legacy path — preserve old behavior but return breakdown object
     // get activity factor from day or profile
     const afManual = Number(day.activityFactor ?? profile.defaultActivityFactor ?? 1.2) || 1.2;
+    const c = getConstFromProfile(profile);
     const maintenancePlusActivity = Math.round(bmr * afManual);
-    const tefManual = Math.round(totalIntake * 0.10); // TEF = 10% of intake
+    const tefManual = Math.round(totalIntake * c.DEFAULT_TEF_RATIO);
     const tdeeManual = maintenancePlusActivity + tefManual;
 
     tdeeBreakdown = {
@@ -233,7 +248,17 @@ function appReducer(state, action) {
       return { ...state, selectedDate: action.payload };
     }
     case "IMPORT_STATE": {
-      return { ...action.payload };
+      let imported = { ...action.payload };
+
+      // Backfill profile constants on import
+      const profile = imported.profile || {};
+      profile.WALK_KCAL_PER_KG_PER_KM = toNum(profile.WALK_KCAL_PER_KG_PER_KM ?? profile.walkKcalPerKgPerKm ?? 0.78);
+      profile.RUN_KCAL_PER_KG_PER_KM = toNum(profile.RUN_KCAL_PER_KG_PER_KM ?? profile.runKcalPerKgPerKm ?? 1.0);
+      profile.STEP_KCAL_CONST = toNum(profile.STEP_KCAL_CONST ?? profile.stepKcalConst ?? 0.00057);
+      profile.DEFAULT_TEF_RATIO = toNum(profile.DEFAULT_TEF_RATIO ?? profile.tefRatio ?? 0.10);
+      imported.profile = profile;
+
+      return { ...imported };
     }
     case "UPSERT_FOOD_ITEM": {
       const { id, name, category, unitLabel, kcalPerUnit, isFavourite = false } = action.payload;
