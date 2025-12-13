@@ -119,12 +119,13 @@ export const STEP_KCAL_CONST = 0.00057;
 export const DEFAULT_TEF_RATIO = 0.10;
 
 // add this after existing constants
-export function getConstFromProfile(profile = {}) {
+export function getConstFromProfile(profile) {
+  const p = profile ?? {};
   return {
-    WALK_KCAL_PER_KG_PER_KM: toNum(profile.WALK_KCAL_PER_KG_PER_KM ?? profile.walkKcalPerKgPerKm ?? WALK_KCAL_PER_KG_PER_KM),
-    RUN_KCAL_PER_KG_PER_KM: toNum(profile.RUN_KCAL_PER_KG_PER_KM ?? profile.runKcalPerKgPerKm ?? RUN_KCAL_PER_KG_PER_KM),
-    STEP_KCAL_CONST: Number(profile.STEP_KCAL_CONST ?? profile.stepKcalConst ?? STEP_KCAL_CONST),
-    DEFAULT_TEF_RATIO: Number(profile.DEFAULT_TEF_RATIO ?? profile.tefRatio ?? DEFAULT_TEF_RATIO),
+    WALK_KCAL_PER_KG_PER_KM: toNum(p.WALK_KCAL_PER_KG_PER_KM ?? p.walkKcalPerKgPerKm ?? WALK_KCAL_PER_KG_PER_KM),
+    RUN_KCAL_PER_KG_PER_KM: toNum(p.RUN_KCAL_PER_KG_PER_KM ?? p.runKcalPerKgPerKm ?? RUN_KCAL_PER_KG_PER_KM),
+    STEP_KCAL_CONST: Number(p.STEP_KCAL_CONST ?? p.stepKcalConst ?? STEP_KCAL_CONST),
+    DEFAULT_TEF_RATIO: Number(p.DEFAULT_TEF_RATIO ?? p.defaultTefRatio ?? DEFAULT_TEF_RATIO),
   };
 }
 

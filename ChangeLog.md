@@ -159,3 +159,78 @@ This required deep container debugging + layout restructuring — our proudest t
 | Foods        | ❌ Hardcoded categories   | ✔ Dynamic full CRUD for categories       |
 | Trends       | ❌ Limited visuals        | ✔ Dual-chart insights + date controls    |
 | Consistency  | ❌ Mixed styling          | ✔ Complete app-wide design language      |
+
+## v3: Advanced TDEE Revamp Edition
+
+The physiological recalibration of Diet-Tracker — transforming it from a simple calorie tracker into a precise energy modeler grounded in human physiology. This release is the technical cornerstone that elevates accuracy, transparency, and long-term reliability.
+
+### Goals of Revamp
+* Overhaul energy expenditure calculations to align with established physiological principles (BMR + NEAT + EAT + TEF = TDEE)
+* Eliminate double-counting and heuristics in the legacy model while preserving all user data
+* Introduce explicit, auditable components for NEAT, EAT, and derived Activity Factor
+* Enable deeper insights through breakdowns and trends without disrupting existing workflows
+* Lock in correctness with unit tests and backward compatibility
+
+### Major System-wide Enhancements
+
+#### Energy Model Overhaul
+* **From Legacy to Physiology-Correct:** Replaced the old formula (TDEE = BMR × AF + Workout × Intensity) with a component-based system:
+  - **Old Issues Addressed:** Eliminated workout double-counting, subjective intensity scaling, and opaque NEAT assumptions.
+  - **New Formula:** BMR + NEAT (steps + survey) + EAT (net activities) = Maintenance + TEF (intake-based) = TDEE.
+* **Canonical Pipeline:** Introduced `getDayDerived(state, dateKey)` as the single source of truth for all TDEE computations — consumed uniformly across Dashboard, Day Log, Stats, and Trends.
+* **Profile Calibration:** New tunable constants (e.g., STEP_KCAL_CONST, WALK_KCAL_PER_KG_PER_KM) with safe fallbacks; legacy helpers wrapped for compatibility.
+
+#### Core Energy Components
+* **BMR (Basal Metabolic Rate):** Authoritative baseline, snapshotted per day (`bmrSnapshot`) to prevent retroactive changes from profile updates.
+* **NEAT (Non-Exercise Activity Thermogenesis):** Blended from steps (calibrated constant × weight) and survey (subjective + standing + commute adjustments); weighted 75/25 for steps-dominant realism.
+* **EAT (Exercise Activity Thermogenesis):** Distance-based gross calories for walks/jogs, minus BMR share for true net; intensity-scaled with fallbacks to estimated distances.
+* **TEF (Thermic Effect of Food):** Intake × ratio (default 10%); applied post-maintenance for precise TDEE.
+* **Derived Activity Factor (AF):** Automatically computed (Maintenance / BMR) — trends for insight, not manual input.
+
+#### Activity Modes
+* **Tiered Progression:** Days auto-upgrade: Manual (legacy AF), Advanced NEAT (steps + survey), Advanced Full (NEAT + EAT).
+* **Seamless Integration:** Mode inferred from data presence; no user-facing toggles needed.
+
+### Page-wise Improvements
+
+#### New Activity Tab
+* **Dedicated Energy Logging:** Central hub for walks/jogs (distance + intensity), steps, and NEAT survey (subjective scale, standing hours, active commute).
+* **Live Previews:** Real-time NEAT kcal, EAT net/gross breakdowns, and computed AF — with totals updating on input.
+* **Smart UX:** Add buttons for common activities; info banners explain NEAT vs. EAT; save triggers mode upgrade.
+
+#### Day Log
+* **TDEE Breakdown Display:** Full component visualization (BMR, NEAT, EAT net, TEF, Total TDEE) in a clean, stacked format.
+* **Legacy Handling:** Old workout fields shown as display-only; manual AF inputs disabled in advanced modes.
+* **Enhanced Feedback:** Deficit/surplus recalculates dynamically; hydration and notes unchanged.
+
+#### Stats & Analytics
+* **Decomposition Over Time:** New TDEE breakdown charts showing NEAT/EAT/TEF trends.
+* **AF Trends:** Derived AF plotted for movement patterns (no storage, pure computation).
+* **Daily Matrix Refinement:** Powered by canonical derivations; sortable columns now include NEAT and EAT nets.
+* **Modular Components:** TDEEDecomposition and DailyStatsMatrix extracted for reusability.
+
+#### Dashboard & Trends
+* **Dynamic Metrics:** All stats (deficit, streaks) reference true TDEE; historical recalcs automatic but non-destructive.
+* **Trends Updates:** Intake vs. TDEE lines now use advanced model; meal bars unchanged for continuity.
+* **Streak Logic:** Refined to use net deficit from new TDEE (positive = under maintenance).
+
+#### Settings
+* **Profile Extensions:** New constants section (toggleable) for WALK/RUN/STEP/TEF tuning.
+* **Migration Safeguards:** Import/export logic backfills `bmrSnapshot` and clears legacy workouts.
+
+### Behind-the-Scenes Improvements
+* **Modular Math Library (calculations.js):** Rewritten as pure functions (NEAT, EAT, AF, TEF); legacy wrappers ensure zero breakage.
+* **Data Safety:** Explicit exclusions for old fields; snapshotted BMR prevents historical drift.
+* **Unit Tests:** Comprehensive suite validates edge cases (null profiles, zero inputs); caught/fixed real bugs like NEAT blending.
+* **Performance:** Memoized derivations in components; no regressions in render speed.
+
+### Summary of Achievements
+
+| Area              | Original (v1/v2)                  | Now (v3)                                      |
+|-------------------|-----------------------------------|-----------------------------------------------|
+| Energy Model     | Heuristic TDEE + workouts        | Physiology-correct: BMR + NEAT + EAT + TEF    |
+| Calculation Site | Scattered per-page               | Centralized `getDayDerived` pipeline          |
+| Activity Logging | Basic workouts                   | Explicit NEAT/EAT tab with live previews      |
+| Data Integrity   | Risk of retroactive changes      | Snapshotted BMR; legacy display-only          |
+| Insights         | Opaque trends                    | Auditable breakdowns + derived AF trends      |
+| Reliability      | Untested math                    | Unit-tested core; migration-proof             |

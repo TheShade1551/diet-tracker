@@ -79,7 +79,7 @@ export default function Layout() {
           </div>
 
           <div className="topbar-right">
-            <span className="topbar-version">v2.0 • UI Revamp</span>
+            <span className="topbar-version">v3.0 • TDEE Revamp</span>
           </div>
         </header>
 
